@@ -1,4 +1,4 @@
-# Atap Corpus
+# ATAP Corpus
 
 Provides a standardised base Corpus structure for ATAP tools.
 
