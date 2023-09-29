@@ -17,3 +17,7 @@ Out of the box, Corpus also comes with simple but quick visualisations such as w
 ```shell
 pip install atap_corpus[viz]
 ```
+
+
+This repo originated from Juxtorpus and is a decoupling effort.
+Juxtorpus repo may be accessed [here](https://github.com/Sydney-Informatics-Hub/juxtorpus).
