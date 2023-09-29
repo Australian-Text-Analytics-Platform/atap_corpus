@@ -1,0 +1,23 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# C extensions
+*.so
+
+# Unit test / coverage reports
+# learning tests
+tests/ltest*
+**/.pytest_cache
+
+# Jupyter Notebook
+**/.ipynb_checkpoints
+
+# Virtual Environments
+.venv
+.venv*
+
+# Jetbrains IDE
+.idea/
+
+# MACOSX
+**/.DS_STORE
