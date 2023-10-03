@@ -24,17 +24,18 @@ echo "PYPROJECT=$POETRY_FILE"
 echo "OS=$OS"
 echo "ARCH=$ARCH"
 echo "PYTHON=$(which python3) version=$(python3 --version | awk '{print $2}')"
-echo "++ Virtual environment will be installed at $VENV_DIR"
+printf "Confirm? (y/n) "
+read x && [[ $x != 'y' ]] && { echo "Exited"; exit 0 }
 
 if [[ ! -f $POETRY_FILE ]]; then
   echo "-- Missing $POETRY_FILE." >&2
   exit 1
 fi
 
+echo "++ Virtual environment will be installed at $VENV_DIR"
 if [[ -d "$VENV_DIR" ]]; then
-  printf "-- Virtual environment $VENV_DIR already exists. Replace(y/n)? "
-  read x
-  [[ $x != 'y' ]] && echo "Exited." && exit 0
+  printf "-- Virtual environment $VENV_DIR already exists. Replace? (y/n) "
+  read x && [[ $x != 'y' ]] && { echo "Exited."; exit 0 }
   rm -rf "$VENV_DIR"
 fi
 
@@ -44,12 +45,12 @@ python3 -m venv $VENV_DIR
 echo "++ Activating virtual env..."
 source $VENV_DIR/bin/activate
 
-echo "++ Installing dependencies..."
-echo "++ Found poetry config file."
+echo "++ Installing poetry..."
 pip install --upgrade pip
 pip install poetry
+echo "++ Installing dependencies via poetry..."
 
-echo "++ Removing poetry.lock..."
+echo "++ Removing poetry.lock for fresh install..."
 rm -f poetry.lock
 echo "++ Installing dependencies..."
 if [[ ${ARCH:u} == ARM* && ${OS:u} == "DARWIN" ]]; then   #:u - uppercase (zsh only)
