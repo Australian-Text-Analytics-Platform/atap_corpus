@@ -1,4 +1,4 @@
-from typing import Any, Hashable
+from typing import Any, Hashable, Protocol, runtime_checkable
 from abc import ABCMeta, abstractmethod
 
 from atap_corpus.types import TMask, TPathLike
@@ -49,3 +49,17 @@ class Serialisable(metaclass=ABCMeta):
     def serialise(self, path: TPathLike) -> TPathLike:
         """ Serialises configuration into a persistent format. """
         raise NotImplementedError()
+
+
+@runtime_checkable
+class UniqueNameProvider(Protocol):
+    """ Provides a unique string.
+
+    Protocol - does not enforce a strict class hierarchy for future subclasses.
+    """
+
+    def unique_name(self) -> str:
+        ...
+
+    def is_unique_name(self, name: str) -> bool:
+        ...
