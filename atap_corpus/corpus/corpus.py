@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Union
+from typing import Optional, Self
 
 import numpy as np
 import pandas as pd
@@ -112,10 +112,10 @@ class Corpus(BaseCorpus):
     def vocab(self) -> set[str]:
         return set(self.dtm.vocab(nonzero=True))
 
-    def docs(self) -> 'pd.Series':
+    def docs(self) -> pd.Series:
         return self._df.loc[:, self._COL_DOC]
 
-    def summary(self):
+    def summary(self) -> pd.DataFrame:
         """ Basic summary statistics of the corpus. """
         describe_cols_to_drop = ['count', 'std', '25%', '50%', '75%']
         docs_info = pd.Series(self.dtm.docs_size_vector).describe().drop(describe_cols_to_drop).astype(
@@ -144,7 +144,7 @@ class Corpus(BaseCorpus):
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
-    def cloned(self, mask: 'pd.Series[bool]') -> 'Corpus':
+    def cloned(self, mask: 'pd.Series[bool]') -> Self:
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
@@ -175,7 +175,7 @@ class Corpus(BaseCorpus):
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
-    def __getitem__(self, item: Union[int, slice]):
+    def __getitem__(self, item: int | slice):
         """ Returns """
         if isinstance(item, int):
             return self.docs().iloc[item]
