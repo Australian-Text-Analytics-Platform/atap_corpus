@@ -23,7 +23,7 @@ ARCH=$(uname -m)
 echo "PYPROJECT=$POETRY_FILE"
 echo "OS=$OS"
 echo "ARCH=$ARCH"
-echo "PYTHON=$(which python3)"
+echo "PYTHON=$(which python3) version=$(python3 --version | awk '{print $2}')"
 echo "++ Virtual environment will be installed at $VENV_DIR"
 
 if [[ ! -f $POETRY_FILE ]]; then
