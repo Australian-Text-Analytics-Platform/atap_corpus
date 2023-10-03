@@ -46,6 +46,6 @@ class Serialisable(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def serialise(self, path: TPathLike):
+    def serialise(self, path: TPathLike) -> TPathLike:
         """ Serialises configuration into a persistent format. """
         raise NotImplementedError()
