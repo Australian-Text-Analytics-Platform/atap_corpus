@@ -6,7 +6,7 @@ authors = ["Jack <huen.chan@sydney.edu.au>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<4"
+python = ">=3.10,<4"
 pandas = { version = ">=2.1", extras = ["excel", "parquet", "performance"] } # https://pandas.pydata.org/docs/getting_started/install.html#optional-dependencies
 pyarrow = ">=13.0.0"      # pandas memory efficient dep for str (also from pandas extra: parquet)
 openpyxl = "^3.1.1"
