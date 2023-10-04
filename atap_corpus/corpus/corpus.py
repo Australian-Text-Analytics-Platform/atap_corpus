@@ -1,14 +1,16 @@
 import logging
-from typing import Optional, Self
+from typing import Optional, TypeVar
 
 import numpy as np
 import pandas as pd
 
 from atap_corpus.corpus.base import BaseCorpus
 from atap_corpus.corpus.utils import generate_name, ensure_docs
-from atap_corpus.types import TPathLike
+from atap_corpus.types import PathLike, Docs
 
 logger = logging.getLogger(__name__)
+
+TCorpus = TypeVar("TCorpus", bound="Corpus")
 
 
 class Corpus(BaseCorpus):
@@ -34,7 +36,7 @@ class Corpus(BaseCorpus):
     _COL_DOC: str = 'document'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'Corpus':
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> TCorpus:
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
@@ -45,12 +47,12 @@ class Corpus(BaseCorpus):
         """ Export corpus as a dataframe. """
         return self._df.copy().reset_index(drop=True)
 
-    def serialise(self, path: TPathLike) -> TPathLike:
+    def serialise(self, path: PathLike) -> PathLike:
         path = super().serialise(path)
         raise NotImplementedError()
 
     @classmethod
-    def deserialise(cls, path: TPathLike) -> 'Corpus':
+    def deserialise(cls, path: PathLike) -> TCorpus:
         raise NotImplementedError()
 
     def __init__(self, text: pd.Series, name: str = None):
@@ -88,14 +90,14 @@ class Corpus(BaseCorpus):
         self.name = name
 
     @property
-    def parent(self) -> 'Corpus':
+    def parent(self) -> TCorpus:
         return self._parent
 
     @property
     def is_root(self) -> bool:
         return self._parent is None
 
-    def find_root(self) -> 'Corpus':
+    def find_root(self) -> TCorpus:
         """ Find and return the root corpus. """
         if self.is_root: return self
         parent = self._parent
@@ -112,7 +114,7 @@ class Corpus(BaseCorpus):
     def vocab(self) -> set[str]:
         return set(self.dtm.vocab(nonzero=True))
 
-    def docs(self) -> pd.Series:
+    def docs(self) -> Docs:
         return self._df.loc[:, self._COL_DOC]
 
     def summary(self) -> pd.DataFrame:
@@ -138,13 +140,13 @@ class Corpus(BaseCorpus):
         })
         return pd.concat([other_info, docs_info, meta_info]).to_frame(name='')
 
-    def sample(self, n: int, rand_stat=None) -> 'Corpus':
+    def sample(self, n: int, rand_stat=None) -> TCorpus:
         """ Uniformly sample from the corpus. """
         mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
-    def cloned(self, mask: 'pd.Series[bool]') -> Self:
+    def cloned(self, mask: 'pd.Series[bool]') -> TCorpus:
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
@@ -175,7 +177,7 @@ class Corpus(BaseCorpus):
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
-    def __getitem__(self, item: int | slice):
+    def __getitem__(self, item: int | slice) -> Docs:
         """ Returns """
         if isinstance(item, int):
             return self.docs().iloc[item]
@@ -189,3 +191,8 @@ class Corpus(BaseCorpus):
             return self.docs().iloc[start:stop]
         else:
             raise NotImplementedError("Only supports int and slice.")
+
+    def __eq__(self, other: 'Corpus') -> bool:
+        # todo: == should compare the len, index, dataframe.
+        is_eq_df: bool = self._df.equals(other._df)
+        raise NotImplementedError()
