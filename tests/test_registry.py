@@ -1,3 +1,11 @@
+""" TestRegistry
+
+Related:
++ registry.py
+
+This test suite ensures all the behaviours defined in registry.py are well-defined.
+"""
+
 from unittest import TestCase
 
 from atap_corpus.corpus.mixins import UniqueNameProviderMixin
