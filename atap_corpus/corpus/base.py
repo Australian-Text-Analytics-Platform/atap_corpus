@@ -64,7 +64,9 @@ class BaseCorpora(Container, metaclass=ABCMeta):
     """ Base Corpora
 
     All Corpora (corpus containers) should implement this class.
-    This Base class does not impose anything but
+    This Base class does not impose anything but the need for the instances within a BaseCorpora to be a BaseCorpus.
+
+    It also changes the argument names for the relevant inherited Container functions.
     """
 
     def __init__(self, corpus: Optional[TBaseCorpus | Iterable[TBaseCorpus]] = None):
