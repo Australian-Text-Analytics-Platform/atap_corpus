@@ -1,12 +1,12 @@
 """ Corpus tests
 
-clonable:
-1. corpus cloned returns a corpus of size mask.
-name: names are unique and on default generated. -> this requires global corpora.
-2. create
+Related:
++ corpus.corpus.py
 
-3. serialisation:
-    + serialise and deserialise and ensure same corpus is built.
+This test suite ensures core behaviours of the DataFrameCorpus is behaving correctly.
+Namely, these are:
+read behaviours - get, len, iter
+clone behaviours - clone, detach, parent, root
 """
 
 from unittest import TestCase
