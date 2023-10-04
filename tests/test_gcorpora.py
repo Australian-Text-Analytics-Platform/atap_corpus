@@ -1,6 +1,9 @@
 """ Test Global Corpora
 
-GlobalCorpora is a runtime feature of the module.
+Related:
++ corpus.corpora.py
+
+GlobalCorpora is a runtime feature of the framework.
 It keeps track of all the BaseCorpus instances that are created so that we have a
 central management object.
 
