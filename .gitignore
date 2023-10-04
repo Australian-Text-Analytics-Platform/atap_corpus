@@ -21,3 +21,7 @@ tests/ltest*
 
 # MACOSX
 **/.DS_STORE
+
+
+# dev - ignore all ltest notebooks (learning tests)
+ltest_*.ipynb
