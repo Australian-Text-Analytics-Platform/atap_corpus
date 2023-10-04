@@ -3,17 +3,23 @@ from typing import Optional, TypeVar
 
 import numpy as np
 import pandas as pd
+import spacy
 
 from atap_corpus.corpus.base import BaseCorpus
-from atap_corpus.corpus.utils import generate_name, ensure_docs
-from atap_corpus.types import PathLike, Docs
+from atap_corpus.registry import _Unique_Name_Provider
+from atap_corpus.types import PathLike, Docs, Mask
 
 logger = logging.getLogger(__name__)
 
 TCorpus = TypeVar("TCorpus", bound="Corpus")
 
 
-class Corpus(BaseCorpus):
+def ensure_docs(docs: pd.Series):
+    docs.name = DataFrameCorpus._COL_DOC  # set default doc name
+    return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
+
+
+class DataFrameCorpus(BaseCorpus):
     """ Corpus
     This class abstractly represents a corpus which is a collection of documents.
     Each document is also described by their metadata and is used for functions such as slicing.
@@ -40,7 +46,7 @@ class Corpus(BaseCorpus):
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
-        corpus = Corpus(df[col_doc], name=name)
+        corpus = cls(df[col_doc], name=name)
         return corpus
 
     def to_dataframe(self):
@@ -56,35 +62,14 @@ class Corpus(BaseCorpus):
         raise NotImplementedError()
 
     def __init__(self, text: pd.Series, name: str = None):
-        self._name = None
-        self.name = name if name else generate_name()
+        super().__init__(name=name)
 
         self._df: pd.DataFrame = pd.DataFrame(ensure_docs(text), columns=[self._COL_DOC])
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
-        self._parent: Optional[Corpus] = None
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        global _ALL_CORPUS_NAMES
-        while name in _ALL_CORPUS_NAMES:
-            new_name = name + '_'
-            logger.info(f"{name} already exists. It renamed to {new_name}")
-            name = new_name
-        _ALL_CORPUS_NAMES.add(name)
-
-        if self.name is not None:
-            try:
-                _ALL_CORPUS_NAMES.remove(self.name)
-            except KeyError:
-                logger.debug(f'Failed to remove {self.name} from global corpus name cache.')
-        self._name = name
+        self._parent: Optional[TCorpus] = None
 
     def rename(self, name: str):
         self.name = name
@@ -105,40 +90,8 @@ class Corpus(BaseCorpus):
             parent = parent._parent
         return parent
 
-    # statistics
-    @property
-    def num_terms(self) -> int:
-        return self.dtm.total
-
-    @property
-    def vocab(self) -> set[str]:
-        return set(self.dtm.vocab(nonzero=True))
-
     def docs(self) -> Docs:
         return self._df.loc[:, self._COL_DOC]
-
-    def summary(self) -> pd.DataFrame:
-        """ Basic summary statistics of the corpus. """
-        describe_cols_to_drop = ['count', 'std', '25%', '50%', '75%']
-        docs_info = pd.Series(self.dtm.docs_size_vector).describe().drop(describe_cols_to_drop).astype(
-            int)  # Show only integer numbers.
-
-        mapper = {row_idx: f"{row_idx} Words per Document" for row_idx in docs_info.index}
-        docs_info.rename(index=mapper, inplace=True)
-
-        other_info = pd.Series({
-            'Name': self.name,
-            'Parent': self.parent.name if self.parent is not None else '',
-            "Corpus Type": self.__class__.__name__,
-            "Number of Documents": len(self),
-            "Number of Total Words": self.dtm.total,
-            "Size of Vocabulary": len(self.dtm.vocab(nonzero=True)),
-        })
-
-        meta_info = pd.Series({
-            "metas": ', '.join(self._meta_registry.keys())
-        })
-        return pd.concat([other_info, docs_info, meta_info]).to_frame(name='')
 
     def sample(self, n: int, rand_stat=None) -> TCorpus:
         """ Uniformly sample from the corpus. """
@@ -149,18 +102,18 @@ class Corpus(BaseCorpus):
     def cloned(self, mask: 'pd.Series[bool]') -> TCorpus:
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
-        cloned_metas = self._cloned_metas(mask)
+        # cloned_metas = self._cloned_metas(mask)
         # cloned_dtms = self._cloned_dtms(mask)
 
-        clone = Corpus(cloned_docs, cloned_metas)
+        clone = self.__class__(cloned_docs, name=_Unique_Name_Provider.unique_name())
         # clone._dtm_registry = cloned_dtms
         clone._parent = self
         return clone
 
-    def _cloned_docs(self, mask) -> pd.Series:
+    def _cloned_docs(self, mask: Mask) -> pd.Series:
         return self.docs().loc[mask]
 
-    def detached(self) -> 'Corpus':
+    def detached(self) -> TCorpus:
         """ Detaches from corpus tree and returns the corpus as root.
 
         DTM will be regenerated when accessed - hence a different vocab.
@@ -191,8 +144,3 @@ class Corpus(BaseCorpus):
             return self.docs().iloc[start:stop]
         else:
             raise NotImplementedError("Only supports int and slice.")
-
-    def __eq__(self, other: 'Corpus') -> bool:
-        # todo: == should compare the len, index, dataframe.
-        is_eq_df: bool = self._df.equals(other._df)
-        raise NotImplementedError()
