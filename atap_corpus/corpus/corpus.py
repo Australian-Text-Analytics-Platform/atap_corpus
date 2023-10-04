@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 TCorpus = TypeVar("TCorpus", bound="Corpus")
 
 
-def ensure_docs(docs: pd.Series):
+def ensure_docs(docs: Docs):
     docs.name = DataFrameCorpus._COL_DOC  # set default doc name
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
@@ -42,7 +42,7 @@ class DataFrameCorpus(BaseCorpus):
     _COL_DOC: str = 'document'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> TCorpus:
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'Corpus':
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
@@ -58,7 +58,7 @@ class DataFrameCorpus(BaseCorpus):
         raise NotImplementedError()
 
     @classmethod
-    def deserialise(cls, path: PathLike) -> TCorpus:
+    def deserialise(cls, path: PathLike) -> 'Corpus':
         raise NotImplementedError()
 
     def __init__(self, text: pd.Series, name: str = None):
@@ -69,20 +69,20 @@ class DataFrameCorpus(BaseCorpus):
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
-        self._parent: Optional[TCorpus] = None
+        self._parent: Optional['Corpus'] = None
 
     def rename(self, name: str):
         self.name = name
 
     @property
-    def parent(self) -> TCorpus:
+    def parent(self) -> 'Corpus':
         return self._parent
 
     @property
     def is_root(self) -> bool:
         return self._parent is None
 
-    def find_root(self) -> TCorpus:
+    def find_root(self) -> 'Corpus':
         """ Find and return the root corpus. """
         if self.is_root: return self
         parent = self._parent
@@ -93,13 +93,13 @@ class DataFrameCorpus(BaseCorpus):
     def docs(self) -> Docs:
         return self._df.loc[:, self._COL_DOC]
 
-    def sample(self, n: int, rand_stat=None) -> TCorpus:
+    def sample(self, n: int, rand_stat=None) -> 'Corpus':
         """ Uniformly sample from the corpus. """
         mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
-    def cloned(self, mask: 'pd.Series[bool]') -> TCorpus:
+    def cloned(self, mask: 'pd.Series[bool]') -> 'Corpus':
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
         # cloned_metas = self._cloned_metas(mask)
@@ -113,7 +113,7 @@ class DataFrameCorpus(BaseCorpus):
     def _cloned_docs(self, mask: Mask) -> pd.Series:
         return self.docs().loc[mask]
 
-    def detached(self) -> TCorpus:
+    def detached(self) -> 'Corpus':
         """ Detaches from corpus tree and returns the corpus as root.
 
         DTM will be regenerated when accessed - hence a different vocab.
