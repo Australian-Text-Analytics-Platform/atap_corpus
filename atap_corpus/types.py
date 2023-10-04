@@ -1,8 +1,9 @@
-from os import PathLike
+import os
+from typing import TypeAlias
 
 import spacy.tokens
 
-TMask = 'pd.Series[bool]'
-TDoc = str | spacy.tokens.Doc
-TDocs = 'pd.Series[TDoc]'
-TPathLike = PathLike[str] | PathLike[bytes]
+Mask: TypeAlias = 'pd.Series[bool]'
+Doc: TypeAlias = str | spacy.tokens.Doc
+Docs: TypeAlias = 'pd.Series[Doc]'
+PathLike: TypeAlias = os.PathLike[str] | os.PathLike[bytes]
