@@ -1,16 +1,20 @@
 from typing import Any, Hashable, Protocol, runtime_checkable
 from abc import ABCMeta, abstractmethod
 
-from atap_corpus.types import TMask, TPathLike
+from atap_corpus.types import Mask, PathLike
 
 
 class Clonable(metaclass=ABCMeta):
     @abstractmethod
-    def cloned(self, mask: TMask) -> 'Clonable':
+    def cloned(self, mask: Mask) -> 'Clonable':
         raise NotImplementedError()
 
 
 class Container(metaclass=ABCMeta):
+    """ Container abstract class
+    This class provides a common interface and enforce implementations of
+    all classes that acts as a container of
+    """
     @abstractmethod
     def add(self, obj: Any):
         """ Add object to container. """
@@ -41,25 +45,13 @@ class Serialisable(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def deserialise(cls, path: TPathLike) -> 'Serialisable':
+    def deserialise(cls, path: PathLike) -> 'Serialisable':
         """ Deserialise configuration and return the deserialised object. """
         raise NotImplementedError()
 
     @abstractmethod
-    def serialise(self, path: TPathLike) -> TPathLike:
+    def serialise(self, path: PathLike) -> PathLike:
         """ Serialises configuration into a persistent format. """
         raise NotImplementedError()
 
 
-@runtime_checkable
-class UniqueNameProvider(Protocol):
-    """ Provides a unique string.
-
-    Protocol - does not enforce a strict class hierarchy for future subclasses.
-    """
-
-    def unique_name(self) -> str:
-        ...
-
-    def is_unique_name(self, name: str) -> bool:
-        ...
