@@ -6,7 +6,7 @@ This Test Suite tests for:
 
 from unittest import TestCase
 
-from tests.test_corpus import MockDataFrameCorpus
+from test_corpus import MockDataFrameCorpus
 from atap_corpus.registry import _Global_Corpora
 
 
