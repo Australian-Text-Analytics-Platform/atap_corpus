@@ -109,7 +109,7 @@ class DataFrameCorpus(BaseCorpus):
         # cloned_metas = self._cloned_metas(mask)
         # cloned_dtms = self._cloned_dtms(mask)
 
-        clone = self.__class__(cloned_docs, name=_Unique_Name_Provider.unique_name())
+        clone = self.__class__(docs=cloned_docs, name=_Unique_Name_Provider.unique_name())
         # clone._dtm_registry = cloned_dtms
         clone._parent = self
         return clone
@@ -123,7 +123,13 @@ class DataFrameCorpus(BaseCorpus):
         DTM will be regenerated when accessed - hence a different vocab.
         """
         df = self._df.copy().reset_index(drop=True)
-        detached = self.__class__(text=df[self._COL_DOC])
+        name = f"{self.name}-detached"
+        suffix = ''
+        while name := name + suffix:
+            if _Unique_Name_Provider.is_unique_name(name):
+                break
+            suffix = str(suffix + 1 if isinstance(suffix, int) else 0)
+        detached = self.__class__(df[self._COL_DOC], name=name)
         return detached
 
     def __len__(self):
