@@ -99,13 +99,17 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
     def sample(self, n: int, rand_stat=None) -> 'Corpus':
-        """ Uniformly sample from the corpus. """
+        """ Uniformly sample from the corpus. This creates a clone. """
         mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        name = self.name
         return self.cloned(mask)
 
     def cloned(self, mask: 'pd.Series[bool]') -> 'Corpus':
-        """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
+        """ Returns a clone of itself by applying the boolean mask.
+        The returned clone will retain a parent-child relationship from which it is cloned.
+        To create a clone without the parent-child relationship, call detached() and del cloned.
+        """
         if not isinstance(mask, pd.Series): raise TypeError(f"Mask is not a pd.Series. Got {type(mask)}.")
         if not mask.isin((0, 1)).all():
             raise ValueError(f"Mask pd.Series is not a valid mask. Must be either boolean or binary.")
@@ -116,17 +120,10 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         return clone
 
     def detached(self) -> 'Corpus':
-        """ Detaches from corpus tree and returns the corpus as root.
-
-        DTM will be regenerated when accessed - hence a different vocab.
-        """
+        """ Detaches from corpus tree and returns a new Corpus instance as root. """
         df = self._df.copy().reset_index(drop=True)
         name = f"{self.name}-detached"
-        suffix = ''
-        while name := name + suffix:
-            if _Unique_Name_Provider.is_unique_name(name):
-                break
-            suffix = str(suffix + 1 if isinstance(suffix, int) else 0)
+        name = _Unique_Name_Provider.unique_name_number_suffixed(name=name)
         detached = self.__class__(df[self._COL_DOC], name=name)
         return detached
 
