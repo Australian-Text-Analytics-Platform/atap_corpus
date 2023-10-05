@@ -196,5 +196,4 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
 
         run_spacy_on._df[run_spacy_on._COL_DOC] = pd.Series(nlp.pipe(docs))
         if not run_spacy_on.uses_spacy():
-            raise RuntimeError(
-                "Did not seem to have properly processed Corpus with spacy. Corpus could be invalid.")
+            raise RuntimeError("Did not seem to have properly processed Corpus with spacy. Corpus could be invalid.")
