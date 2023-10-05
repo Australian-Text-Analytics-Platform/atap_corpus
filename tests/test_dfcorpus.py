@@ -6,7 +6,7 @@ Related:
 This test suite ensures core behaviours of the DataFrameCorpus is behaving correctly.
 Namely, these are:
 read behaviours - get, len, iter
-clone behaviours - clone, detach, parent, root
+clone behaviours - clone, parent, root, detached
 """
 
 from unittest import TestCase
@@ -56,3 +56,35 @@ class TestCorpus(TestCase):
         child = parent.cloned(test_child_mask)
         self.assertEqual(len(child), sum(test_child_mask),
                          f"Expecting size {sum(test_child_mask)}. Got {len(child)}.")
+
+    def test_given_dfcorpus_when_cloned_then_parent_child_refs_is_valid(self):
+        parent = self.root.cloned(test_parent_mask)
+        self.assertTrue(parent.parent is self.root,
+                        f"Expecting parent as {id(self.root)}. Got {id(parent.parent)}")
+        self.assertTrue(parent.find_root() is self.root,
+                        f"Expecting root is {id(self.root)}. Got {id(parent.find_root())}")
+        child = parent.cloned(test_child_mask)
+        self.assertTrue(child.parent is parent,
+                        f"Expecting parent as {id(parent)}. Got {id(child.parent)}")
+        self.assertTrue(child.find_root() is self.root,
+                        f"Expecting root is {id(self.root)}. Got {id(child.find_root())}")
+
+    def test_given_dfcorpus_when_detached_then_detached_is_root_and_tree_structure_kept(self):
+        parent: DataFrameCorpus = self.root.cloned(test_parent_mask)
+        detached = parent.detached()
+        self.assertTrue(detached.find_root() is detached,
+                        f"Expecting root is {id(self.root)}. Got {id(parent.find_root())}")
+        # assert tree structure is kept.
+        self.assertTrue(parent.parent is self.root,
+                        f"Expecting parent as {id(self.root)}. Got {id(parent.parent)}")
+        self.assertTrue(parent.find_root() is self.root,
+                        f"Expecting root is {id(self.root)}. Got {id(parent.find_root())}")
+
+        child = parent.cloned(test_child_mask)
+        self.assertTrue(detached.find_root() is detached,
+                        f"Expecting root is {id(self.root)}. Got {id(child.find_root())}")
+        # assert tree structure is kept.
+        self.assertTrue(child.parent is parent,
+                        f"Expecting parent as {id(parent)}. Got {id(child.parent)}")
+        self.assertTrue(child.find_root() is self.root,
+                        f"Expecting root is {id(self.root)}. Got {id(child.find_root())}")
