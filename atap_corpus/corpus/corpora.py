@@ -99,5 +99,8 @@ class _GlobalCorpora(UniqueCorpora, UniqueNameProviderMixin):
     def get(self, name: str) -> Optional[TBaseCorpus]:
         return self._collection.get(name)
 
+    def items(self) -> list[TBaseCorpus]:
+        return list([c() for c in self._collection.values()])
+
     def is_unique_name(self, name: str) -> bool:
         return name not in self._collection.keys()
