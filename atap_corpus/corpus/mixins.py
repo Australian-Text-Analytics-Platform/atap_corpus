@@ -41,11 +41,17 @@ class SpacyDocsMixin(object):
 
     @abstractmethod
     def uses_spacy(self) -> bool:
+        """ Whether spacy is used. """
         raise NotImplementedError()
 
+    @abstractmethod
+    def run_spacy(self, nlp: spacy.Language, *args, **kwargs) -> None:
+        if not isinstance(nlp, spacy.Language):
+            raise TypeError(f"{nlp} is not a spacy pipeline.")
+
     def get_tokeniser(self, nlp: Optional[spacy.Language] = None) -> Callable[[str], Doc | list[str]]:
-        """ Returns the tokeniser of the spacy nlp pipeline based on whether uses_spacy is True or False.
-        if uses_spacy() then, returns spacy's tokeniser.
+        """ Returns the tokeniser of the spacy nlp pipeline based on whether uses_spacy() is True or False.
+        If uses_spacy() then, returns spacy's tokeniser.
         otherwise, returns a callable that uses a blank spacy tokeniser to tokeniser into a list of str.
         :raises RuntimeError if no tokeniser found in pipeline.
         """
