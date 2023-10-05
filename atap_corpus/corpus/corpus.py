@@ -11,6 +11,7 @@ from atap_corpus.corpus.base import BaseCorpus
 from atap_corpus.corpus.mixins import SpacyDocsMixin
 from atap_corpus.registry import _Unique_Name_Provider
 from atap_corpus.types import PathLike, Docs, Mask
+from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
 
@@ -91,11 +92,11 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         return self._parent is None
 
     def find_root(self) -> 'Corpus':
-        """ Find and return the root corpus. """
+        """ Find and return a copied reference to the root corpus. """
         if self.is_root: return self
-        parent = self._parent
+        parent = self.parent
         while not parent.is_root:
-            parent = parent._parent
+            parent = parent.parent
         return parent
 
     def docs(self) -> Docs:
@@ -161,6 +162,9 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
             return self.docs().iloc[start:stop]
         else:
             raise NotImplementedError("Only supports int and slice.")
+
+    def __str__(self) -> str:
+        return format_dunder_str(self.__class__, self.name, {"size": len(self)})
 
     # -- SpacyDocMixin --
     def uses_spacy(self) -> bool:
