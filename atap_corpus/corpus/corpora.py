@@ -89,4 +89,4 @@ class _GlobalCorpora(UniqueCorpora, UniqueNameProviderMixin):
         return self._collection.get(name)
 
     def is_unique_name(self, name: str) -> bool:
-        return name in self._collection.keys()
+        return name not in self._collection.keys()
