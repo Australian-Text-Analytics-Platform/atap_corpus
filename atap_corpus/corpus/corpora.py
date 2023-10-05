@@ -82,6 +82,8 @@ class _GlobalCorpora(UniqueCorpora, UniqueNameProviderMixin):
         return cls._instance
 
     def add(self, corpus: TBaseCorpus):
+        if not self.is_unique_name(corpus.name):
+            raise RuntimeError(f"{corpus.name} is not unique. GlobalCorpora will be invalid.")
         corpus: wref.ReferenceType[TBaseCorpus] = wref.ref(corpus)
         self._collection[corpus().name] = corpus
 
