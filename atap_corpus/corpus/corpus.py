@@ -11,10 +11,8 @@ from atap_corpus.types import PathLike, Docs, Mask
 
 logger = logging.getLogger(__name__)
 
-TCorpus = TypeVar("TCorpus", bound="Corpus")
 
-
-def ensure_docs(docs: Docs):
+def ensure_docs(docs: pd.Series) -> Docs:
     docs.name = DataFrameCorpus._COL_DOC  # set default doc name
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
@@ -106,11 +104,8 @@ class DataFrameCorpus(BaseCorpus):
             raise ValueError(f"Mask pd.Series is not a valid mask. Must be either boolean or binary.")
         mask = mask.astype('bool')
         cloned_docs = self._cloned_docs(mask)
-        # cloned_metas = self._cloned_metas(mask)
-        # cloned_dtms = self._cloned_dtms(mask)
 
         clone = self.__class__(docs=cloned_docs, name=_Unique_Name_Provider.unique_name())
-        # clone._dtm_registry = cloned_dtms
         clone._parent = self
         return clone
 
