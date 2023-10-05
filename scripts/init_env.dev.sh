@@ -10,6 +10,12 @@ set -e
 
 HELP="./$(basename $0) <virutal-env-name>"
 
+
+if [[ $(dirname $0) != "./scripts" ]]; then
+  echo "-- Please run this script from project root."
+  exit 1
+fi
+
 if [[ -z $1 ]]; then
   echo "-- $HELP" >&2
   exit 1
