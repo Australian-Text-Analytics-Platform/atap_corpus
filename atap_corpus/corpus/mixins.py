@@ -27,5 +27,6 @@ class UniqueNameProviderMixin(object):
                 break
             if not self.is_unique_name(name):
                 _CURRENT_COUNT += 1
+            else:
                 return name
-        raise RuntimeError("unique names exhausted.")
+        raise RuntimeError("all unique names exhausted.")
