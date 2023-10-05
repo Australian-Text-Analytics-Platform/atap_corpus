@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_docs(docs: pd.Series) -> Docs:
+    if isinstance(docs, list | set | tuple):
+        docs = pd.Series(docs)
     if not isinstance(docs, pd.Series):
         raise TypeError(f"Docs must be pd.Series for DataFrameCorpus. Got {type(docs)}.")
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
@@ -63,7 +65,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     def deserialise(cls, path: PathLike) -> 'Corpus':
         raise NotImplementedError()
 
-    def __init__(self, docs: Optional[pd.Series] = None, name: str = None):
+    def __init__(self, docs: Optional[pd.Series | list[str]] = None, name: str = None):
         super().__init__(name=name)
         if docs is None: docs = pd.Series(list())
         self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
@@ -71,8 +73,8 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
-        self._parent: Optional['Corpus'] = None
         self._mask: Mask = pd.Series(np.full(len(self._df), True))
+        self._parent: Optional['Corpus'] = None
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
 
@@ -81,6 +83,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
 
     @property
     def parent(self) -> 'Corpus':
+        """ Returns a read-only reference to the parent corpus. """
         return self._parent
 
     @property
