@@ -109,6 +109,8 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         """ Returns a clone of itself by applying the boolean mask.
         The returned clone will retain a parent-child relationship from which it is cloned.
         To create a clone without the parent-child relationship, call detached() and del cloned.
+
+        subcorpus names follows the dot notation.
         """
         if not isinstance(mask, pd.Series): raise TypeError(f"Mask is not a pd.Series. Got {type(mask)}.")
         if not mask.isin((0, 1)).all():
@@ -116,6 +118,8 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         mask = mask.astype('bool')
         if name is None:
             name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}.")
+        else:
+            name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}.{name}")
         clone = self.__class__(name=name)
         clone._parent = self
         clone._mask = mask
