@@ -1,12 +1,12 @@
-""" Corpus tests
+""" DataFrameCorpus tests
 
 Related:
 + corpus.corpus.py
 
 This test suite ensures core behaviours of the DataFrameCorpus is behaving correctly.
 Namely, these are:
-read behaviours - get, len, iter
-clone behaviours - clone, parent, root, detached
++ read behaviours - get, len, iter
++ clone behaviours - clone, parent, root, detached
 """
 
 from unittest import TestCase
@@ -26,7 +26,7 @@ class MockDataFrameCorpus(DataFrameCorpus):
         super().__init__(docs, name=name)  # generates unique name.
 
 
-class TestCorpus(TestCase):
+class TestDataFrameCorpus(TestCase):
     def setUp(self):
         self.root = MockDataFrameCorpus()
 
