@@ -13,3 +13,21 @@ def format_dunder_str(cls: Type[Any], *args, **kwargs) -> str:
     _args: str = ",".join(args)
     _kwargs: str = ",".join([f"{k}: {v}" for k, v in kwargs.items()])
     return f"<{cls.__name__} {_args} {_kwargs}>"
+
+
+# https://stackoverflow.com/questions/15411967/how-can-i-check-if-code-is-executed-in-the-ipython-notebook
+def is_jupyter() -> bool:
+    """ Checks if the environment is jupyter. """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+
+_IS_JUPYTER = is_jupyter()
