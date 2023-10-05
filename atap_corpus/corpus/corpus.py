@@ -60,15 +60,18 @@ class DataFrameCorpus(BaseCorpus):
     def deserialise(cls, path: PathLike) -> 'Corpus':
         raise NotImplementedError()
 
-    def __init__(self, docs: pd.Series, name: str = None):
+    def __init__(self, docs: Optional[pd.Series] = None, name: str = None):
         super().__init__(name=name)
-
+        if docs is None: docs = pd.Series(list())
         self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
         self._parent: Optional['Corpus'] = None
+        self._mask: Mask = pd.Series(np.full(len(self._df), True))
+        # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
+        # a million documents should equate to ~1Mb
 
     def rename(self, name: str):
         self.name = name
@@ -90,7 +93,7 @@ class DataFrameCorpus(BaseCorpus):
         return parent
 
     def docs(self) -> Docs:
-        return self._df.loc[:, self._COL_DOC]
+        return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
     def sample(self, n: int, rand_stat=None) -> 'Corpus':
         """ Uniformly sample from the corpus. """
@@ -104,14 +107,10 @@ class DataFrameCorpus(BaseCorpus):
         if not mask.isin((0, 1)).all():
             raise ValueError(f"Mask pd.Series is not a valid mask. Must be either boolean or binary.")
         mask = mask.astype('bool')
-        cloned_docs = self._cloned_docs(mask)
-
-        clone = self.__class__(docs=cloned_docs, name=_Unique_Name_Provider.unique_name())
+        clone = self.__class__(name=_Unique_Name_Provider.unique_name())
         clone._parent = self
+        clone._mask = mask
         return clone
-
-    def _cloned_docs(self, mask: Mask) -> pd.Series:
-        return self.docs().loc[mask]
 
     def detached(self) -> 'Corpus':
         """ Detaches from corpus tree and returns the corpus as root.
@@ -129,7 +128,10 @@ class DataFrameCorpus(BaseCorpus):
         return detached
 
     def __len__(self):
-        return len(self._df) if self._df is not None else 0
+        if self.is_root:
+            return len(self._df) if self._df is not None else 0
+        else:
+            return sum(self._mask)
 
     def __iter__(self):
         col_text_idx = self._df.columns.get_loc(self._COL_DOC)
@@ -137,7 +139,9 @@ class DataFrameCorpus(BaseCorpus):
             yield self._df.iat[i, col_text_idx]
 
     def __getitem__(self, item: int | slice) -> Docs:
-        """ Returns """
+        """ Returns a document or slice of corpus. """
+        if len(self) == 0:
+            raise KeyError("Corpus is empty.")
         if isinstance(item, int):
             return self.docs().iloc[item]
         elif isinstance(item, slice):  # i.e. type=slice

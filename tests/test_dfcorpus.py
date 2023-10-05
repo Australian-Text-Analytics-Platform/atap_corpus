@@ -30,6 +30,13 @@ class TestCorpus(TestCase):
     def setUp(self):
         self.root = MockDataFrameCorpus()
 
+    def test_create_empty_dfcorpus(self):
+        empty = DataFrameCorpus()
+        self.assertEqual(len(empty), 0)
+        with self.assertRaises(KeyError):
+            _ = empty[0]
+            _ = empty[0: 1]
+
     def test_given_dfcorpus_when_get_int_returns_correct_doc(self):
         get_int, get_int_label = self.root[0], data.iloc[0]
         self.assertEqual(get_int, get_int_label, f"Expecting {get_int_label}. Got {get_int}.")
