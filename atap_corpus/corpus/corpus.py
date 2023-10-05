@@ -102,7 +102,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         """ Uniformly sample from the corpus. This creates a clone. """
         mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
-        name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-sampled-{n}-")
+        name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
         return self.cloned(mask, name=name)
 
     def cloned(self, mask: 'pd.Series[bool]', name: Optional[str] = None) -> 'Corpus':
@@ -115,7 +115,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
             raise ValueError(f"Mask pd.Series is not a valid mask. Must be either boolean or binary.")
         mask = mask.astype('bool')
         if name is None:
-            name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-")
+            name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}.")
         clone = self.__class__(name=name)
         clone._parent = self
         clone._mask = mask
