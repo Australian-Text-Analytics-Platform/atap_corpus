@@ -1,3 +1,4 @@
+import sys
 from abc import abstractmethod
 from typing import Optional, Callable
 import functools
@@ -23,6 +24,7 @@ class UniqueNameProviderMixin(object):
         raise NotImplementedError()
 
     def unique_name(self) -> str:
+        """ Returns a randomly generated unique name. """
         global _CURRENT_COUNT, _MAX_COMBINATIONS
         while name := coolname.generate_slug(_NAME_LEN):
             if _CURRENT_COUNT >= _MAX_COMBINATIONS:
@@ -34,6 +36,19 @@ class UniqueNameProviderMixin(object):
             else:
                 return name
         raise RuntimeError("all unique names exhausted.")
+
+    def unique_name_number_suffixed(self, name: str) -> str:
+        """ Returns a unique name based on provided name by suffixing with a number that is infinitely incremented
+        :param name: the name you want to retain.
+        :return: a unique name suffixed with a number if the name you want to retain won't be unique.
+        :raises MemoryError - very minimal possibility.
+        Note: python supports infinite integers as long as you have enough memory. Until it raises MemoryError.
+        """
+        suffix = 0
+        while name := name + str(suffix):
+            if self.is_unique_name(name):
+                return name
+            suffix += 1
 
 
 class SpacyDocsMixin(object):
