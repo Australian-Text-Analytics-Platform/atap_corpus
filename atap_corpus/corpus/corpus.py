@@ -1,11 +1,14 @@
 import logging
-from typing import Optional
+from typing import Optional, Generator
 
 import numpy as np
 import pandas as pd
 import spacy
+import spacy.tokens
+from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpus
+from atap_corpus.corpus.mixins import SpacyDocsMixin
 from atap_corpus.registry import _Unique_Name_Provider
 from atap_corpus.types import PathLike, Docs, Mask
 
@@ -18,7 +21,7 @@ def ensure_docs(docs: pd.Series) -> Docs:
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
 
-class DataFrameCorpus(BaseCorpus):
+class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     """ Corpus
     This class abstractly represents a corpus which is a collection of documents.
     Each document is also described by their metadata and is used for functions such as slicing.
@@ -154,3 +157,47 @@ class DataFrameCorpus(BaseCorpus):
             return self.docs().iloc[start:stop]
         else:
             raise NotImplementedError("Only supports int and slice.")
+
+    # -- SpacyDocMixin --
+    def uses_spacy(self) -> bool:
+        if len(self) > 0:
+            return type(self[0]) == spacy.tokens.Doc
+        else:
+            return False
+
+    def run_spacy(self, nlp: spacy.Language,
+                  reprocess_prompt: bool = True,
+                  progress_bar: bool = True,
+                  *args, **kwargs, ) -> None:
+        """ Process the Corpus with a spacy pipeline from the root.
+        If you only want to process a subcorpus, first call .detached().
+
+        If the Corpus has already been processed and reprocess = True, it'll reprocessed from scratch.
+        :param nlp: spacy pipeline
+        :param reprocess_prompt: Set as False to skip user input. If False, prompt user whether to reprocess.
+        :param progress_bar: show progress bar.
+        """
+        # dev - spacy always processed from root unless detached() otherwise it'll introduce too much complexity.
+        super().run_spacy(nlp=nlp, *args, **kwargs)
+        run_spacy_on: DataFrameCorpus = self.find_root()
+        docs: Generator[str, None, None]
+        pb_desc, pb_colour = "Processing: ", 'orange'
+        if self.uses_spacy():
+            logger.warning("This Corpus has already been processed by spacy. It'll be reprocessed.")
+            if reprocess_prompt:
+                inp = input("Are you sure you want to reprocess the Corpus? (y/n): ")
+                if not inp.lower() == 'y':
+                    return
+            # dev - sometimes spacy pipelines are incompatible, better to be reprocessed as string.
+            docs = (d.text for d in run_spacy_on.docs())
+            pb_desc, pb_colour = "Reprocessing: ", 'blue'
+        else:
+            docs = (d for d in run_spacy_on.docs())
+
+        if progress_bar:
+            docs = tqdm(docs, total=len(run_spacy_on), desc=pb_desc, colour=pb_colour)
+
+        run_spacy_on._df[run_spacy_on._COL_DOC] = pd.Series(nlp.pipe(docs))
+        if not run_spacy_on.uses_spacy():
+            raise RuntimeError(
+                "Did not seem to have properly processed Corpus with spacy. Corpus could be invalid.")
