@@ -14,7 +14,7 @@ This test suite ensures core global corpora behaviours.
 
 from unittest import TestCase
 
-from test_corpus import MockDataFrameCorpus
+from test_dfcorpus import MockDataFrameCorpus
 from atap_corpus.registry import _Global_Corpora
 
 
