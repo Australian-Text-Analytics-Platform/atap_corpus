@@ -61,10 +61,10 @@ class DataFrameCorpus(BaseCorpus):
     def deserialise(cls, path: PathLike) -> 'Corpus':
         raise NotImplementedError()
 
-    def __init__(self, text: pd.Series, name: str = None):
+    def __init__(self, docs: pd.Series, name: str = None):
         super().__init__(name=name)
 
-        self._df: pd.DataFrame = pd.DataFrame(ensure_docs(text), columns=[self._COL_DOC])
+        self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
@@ -101,6 +101,10 @@ class DataFrameCorpus(BaseCorpus):
 
     def cloned(self, mask: 'pd.Series[bool]') -> 'Corpus':
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
+        if not isinstance(mask, pd.Series): raise TypeError(f"Mask is not a pd.Series. Got {type(mask)}.")
+        if not mask.isin((0, 1)).all():
+            raise ValueError(f"Mask pd.Series is not a valid mask. Must be either boolean or binary.")
+        mask = mask.astype('bool')
         cloned_docs = self._cloned_docs(mask)
         # cloned_metas = self._cloned_metas(mask)
         # cloned_dtms = self._cloned_dtms(mask)
