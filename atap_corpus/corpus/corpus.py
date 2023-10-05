@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 def ensure_docs(docs: pd.Series) -> Docs:
-    docs.name = DataFrameCorpus._COL_DOC  # set default doc name
+    if not isinstance(docs, pd.Series):
+        raise TypeError(f"Docs must be pd.Series for DataFrameCorpus. Got {type(docs)}.")
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
 
