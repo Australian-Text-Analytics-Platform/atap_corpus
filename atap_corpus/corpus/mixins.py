@@ -1,8 +1,12 @@
-import uuid
 from abc import abstractmethod
-
-import coolname
+from typing import Optional, Callable
+import functools
 import logging
+
+import spacy
+import coolname
+
+from atap_corpus.types import Doc
 
 logger = logging.getLogger(__name__)
 
@@ -30,3 +34,31 @@ class UniqueNameProviderMixin(object):
             else:
                 return name
         raise RuntimeError("all unique names exhausted.")
+
+
+class SpacyDocsMixin(object):
+    """ """
+
+    @abstractmethod
+    def uses_spacy(self) -> bool:
+        raise NotImplementedError()
+
+    def get_tokeniser(self, nlp: Optional[spacy.Language] = None) -> Callable[[str], Doc | list[str]]:
+        """ Returns the tokeniser of the spacy nlp pipeline based on whether uses_spacy is True or False.
+        if uses_spacy() then, returns spacy's tokeniser.
+        otherwise, returns a callable that uses a blank spacy tokeniser to tokeniser into a list of str.
+        :raises RuntimeError if no tokeniser found in pipeline.
+        """
+        if nlp is None: nlp = spacy.blank('en')
+        tokeniser = getattr(nlp, "tokenizer", None)
+        if tokeniser is None:
+            logger.debug("Could not find a spacy tokenizer via the nlp.tokenizer attribute.")
+            logger.debug(f"All spacy components: {', '.join(nlp.component_names)}.")
+            raise RuntimeError(f"The spacy pipline does not have a tokeniser.")
+        if self.uses_spacy():
+            return tokeniser
+        else:
+            def tokenise(tokeniser: spacy.tokenizer.Tokenizer, text: str) -> list[str]:
+                return list([t.text for t in tokeniser(text)])
+
+            return functools.partial(tokenise, tokeniser)
