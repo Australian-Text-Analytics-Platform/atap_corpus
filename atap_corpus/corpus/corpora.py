@@ -95,6 +95,12 @@ class _GlobalCorpora(UniqueCorpora, UniqueNameProviderMixin):
             raise RuntimeError(f"{corpus.name} is not unique. GlobalCorpora will be invalid.")
         corpus: wref.ReferenceType[TBaseCorpus] = wref.ref(corpus)
         self._collection[corpus().name] = corpus
+        logger.debug(f"Added Corpus: id={id(corpus())}. GlobalCorpora size: {len(self)}.")
+        # dev - here Corpus haven't been fully instantiated yet.
+
+    def remove(self, name: str):
+        super().remove(name)
+        logger.debug(f"Removed Corpus with name: {name}. GlobalCorpora size: {len(self)}")
 
     def get(self, name: str) -> Optional[TBaseCorpus]:
         return self._collection.get(name)

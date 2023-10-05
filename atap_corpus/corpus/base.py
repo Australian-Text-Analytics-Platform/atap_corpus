@@ -9,9 +9,13 @@ Must support:
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Iterable, Hashable, TypeVar, Optional
+import logging
 
 from atap_corpus.interfaces import Clonable, Serialisable, Container
 from atap_corpus.types import PathLike
+import sys
+
+logger = logging.getLogger(__name__)
 
 
 class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
@@ -55,6 +59,7 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
         # no super call required here - all abstract classes.
         from atap_corpus.registry import _Global_Corpora
         _Global_Corpora.remove(self.name)
+        logger.debug(f"Corpus collected {id(self)}.")
 
 
 TBaseCorpus = TypeVar("TBaseCorpus", bound=BaseCorpus)
