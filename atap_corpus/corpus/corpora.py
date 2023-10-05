@@ -1,10 +1,13 @@
 from typing import Type, Iterable, Optional
 import weakref as wref
 from weakref import ReferenceType
+import logging
 
 from atap_corpus.corpus.base import BaseCorpora, TBaseCorpus, BaseCorpus
 from atap_corpus.corpus.mixins import UniqueNameProviderMixin
 from atap_corpus.utils import format_dunder_str
+
+logger = logging.getLogger(__name__)
 
 
 class UniqueCorpora(BaseCorpora):
@@ -23,6 +26,7 @@ class UniqueCorpora(BaseCorpora):
                 else:
                     collection[c.name] = c
         self._collection = collection
+        logger.debug("UniqueCorpora init is called.")
 
     def add(self, corpus: TBaseCorpus):
         """ Adds a Corpus into the Corpora. Corpus name is used as the name for get(), remove().
@@ -79,7 +83,12 @@ class _GlobalCorpora(UniqueCorpora, UniqueNameProviderMixin):
             cls._instance = instance
             collection: dict[str, ReferenceType[TBaseCorpus]] = dict()
             cls._instance._collection = collection
+            logger.debug("GlobalCorpora singleton created.")
         return cls._instance
+
+    def __init__(self, *args, **kwargs):
+        if self._instance is not None: return  # otherwise super().__init__() is called again which empties collection.
+        super().__init__(*args, **kwargs)
 
     def add(self, corpus: TBaseCorpus):
         if not self.is_unique_name(corpus.name):
