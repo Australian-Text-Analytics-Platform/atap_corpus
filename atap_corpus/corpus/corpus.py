@@ -75,9 +75,9 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
             f"More than 1 {self._COL_DOC} column in dataframe."
 
         self._mask: Mask = pd.Series(np.full(len(self._df), True))
-        self._parent: Optional['Corpus'] = None
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
+        self._parent: Optional['Corpus'] = None
 
     def rename(self, name: str):
         self.name = name
