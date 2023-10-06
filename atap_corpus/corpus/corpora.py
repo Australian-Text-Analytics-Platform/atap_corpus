@@ -88,6 +88,7 @@ class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin
     def __new__(cls: Type['_GlobalCorpora']) -> '_GlobalCorpora':
         if cls._instance is None:
             instance = super().__new__(cls)
+            instance.__init__()
             cls._instance = instance
             logger.debug("GlobalCorpora singleton created.")
         return cls._instance
@@ -107,7 +108,7 @@ class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin
         raise NotImplementedError(f"Do not remove directly from {self.__class__.__name__}.")
 
     def items(self) -> list[TBaseCorpus]:
-        return list([c_ref() for c_ref in self._collection.keys()])
+        return list(self._collection.keys())
 
     def clear(self):
         return NotImplementedError(f"Do not clear directly from {self.__class__.__name__}")
@@ -119,7 +120,10 @@ class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin
     # UniqueNameProviderMixin
     def is_unique_name(self, name: str) -> bool:
         # this is O(n)
-        for c_ref in self._collection.keys():
-            if name == c_ref().name:
+        for corpus in self._collection.keys():
+            if name == corpus.name:
                 return False
         return True
+
+    def __len__(self) -> int:
+        return len(set(self._collection.keys()))
