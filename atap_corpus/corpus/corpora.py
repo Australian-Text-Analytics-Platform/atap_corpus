@@ -1,10 +1,11 @@
+import uuid
 from typing import Type, Iterable, Optional
 import weakref as wref
-from weakref import ReferenceType
 import logging
+from datetime import datetime
 
 from atap_corpus.corpus.base import BaseCorpora, TBaseCorpus, BaseCorpus
-from atap_corpus.corpus.mixins import UniqueNameProviderMixin
+from atap_corpus.corpus.mixins import UniqueIDProviderMixin, UniqueNameProviderMixin
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -13,33 +14,35 @@ logger = logging.getLogger(__name__)
 class UniqueCorpora(BaseCorpora):
     """ UniqueCorpora
     UniqueCorpora is a container for BaseCorpus objects.
-    BaseCorpus ensures each Corpus name is unique, UniqueCorpora uses this property to ensure uniqueness.
+    BaseCorpus ensures each Corpus id is unique, UniqueCorpora uses this property to ensure uniqueness.
     """
 
     def __init__(self, corpus: Optional[BaseCorpus | Iterable[BaseCorpus]] = None):
         super().__init__(corpus)
-        collection = dict()
+        collection: dict[uuid.UUID, TBaseCorpus] = dict()
         if corpus is not None:
             for c in corpus:
-                if c.name in collection.keys():
-                    raise ValueError(f"Corpus already exist. Unable to retain uniqueness in {self.__class__.__name__}.")
+                if c.id in collection.keys():
+                    logger.warning(f"Corpus ID: {c.id} is duplicated. Only one is kept for uniqueness.")
                 else:
-                    collection[c.name] = c
+                    collection[c.id] = c
         self._collection = collection
-        logger.debug("UniqueCorpora init is called.")
 
     def add(self, corpus: TBaseCorpus):
         """ Adds a Corpus into the Corpora. Corpus name is used as the name for get(), remove().
         If the same corpus is added again, it'll have no effect.
         """
-        self._collection[corpus.name] = corpus
+        self._collection[corpus.id] = corpus
 
-    def remove(self, name: str):
+    def remove(self, id_: uuid.UUID | str):
         """ Remove a Corpus from the Corpora.
         If Corpus does not exist, it'll have no effect.
         """
         try:
-            del self._collection[name]
+            if isinstance(id_, str):
+                id_ = uuid.UUID(id_)
+            id_: uuid.UUID
+            del self._collection[id_]
         except KeyError as ke:
             pass
 
@@ -47,9 +50,10 @@ class UniqueCorpora(BaseCorpora):
         """ Returns a list of Corpus in the Corpora. Shallow copies. """
         return list(self._collection.values()).copy()
 
-    def get(self, name: str) -> TBaseCorpus:
+    def get(self, id_: uuid.UUID | str) -> Optional[TBaseCorpus]:
         """ Return a reference to a Corpus with the specified name. """
-        return self._collection.get(name, None)
+        if isinstance(id_, str): id_ = uuid.UUID(id_)
+        return self._collection.get(id_, None)
 
     def clear(self):
         """ Clears all Corpus in the Corpora. """
@@ -63,50 +67,59 @@ class UniqueCorpora(BaseCorpora):
         return format_dunder_str(self.__class__, **{"size": len(self)})
 
 
-class _GlobalCorpora(UniqueCorpora, UniqueNameProviderMixin):
+class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin):
     """ GlobalCorpora
 
-    Global corpora holds weak references to all created Corpus objects.
+    Global corpora holds weak references to all created Corpus objects in a WeakKeyDictionary.
     This allows us to:
     1. obtain a view of all the corpus that are created via a single entry point.
-    2. extendable to provide runtime manipulations on created Corpus objects.
-    3. weak reference ensures the reference to a Corpus is dropped when there isn't anymore.
+    2. extendable to provide runtime manipulations on all existing Corpus objects.
+    3. weak reference ensures we won't have a dangling reference to a Corpus.
 
     This class is a Singleton.
-    All references held but this singleton object is a weak reference.
+    The WeakKeyDictionary holds the n
+
+    This class is not designed to let you have random access to specific Corpus based on its ID or Name.
+    You can however be able to iterate through all the existing Corpus via items().
     """
+
     _instance = None
 
     def __new__(cls: Type['_GlobalCorpora']) -> '_GlobalCorpora':
         if cls._instance is None:
             instance = super().__new__(cls)
             cls._instance = instance
-            collection: dict[str, ReferenceType[TBaseCorpus]] = dict()
-            cls._instance._collection = collection
             logger.debug("GlobalCorpora singleton created.")
         return cls._instance
 
     def __init__(self, *args, **kwargs):
         if self._instance is not None: return  # otherwise super().__init__() is called again which empties collection.
         super().__init__(*args, **kwargs)
+        self._collection: wref.WeakKeyDictionary[wref.ReferenceType[TBaseCorpus], dict] = wref.WeakKeyDictionary()
 
     def add(self, corpus: TBaseCorpus):
-        if not self.is_unique_name(corpus.name):
-            raise RuntimeError(f"{corpus.name} is not unique. GlobalCorpora will be invalid.")
-        corpus: wref.ReferenceType[TBaseCorpus] = wref.ref(corpus)
-        self._collection[corpus().name] = corpus
-        logger.debug(f"Added Corpus: id={id(corpus())}. GlobalCorpora size: {len(self)}.")
-        # dev - here Corpus haven't been fully instantiated yet.
+        self._collection[corpus] = dict(created=datetime.now())
 
-    def remove(self, name: str):
-        super().remove(name)
-        logger.debug(f"Removed Corpus with name: {name}. GlobalCorpora size: {len(self)}")
+    def get(self, id_: uuid.UUID | str) -> Optional[TBaseCorpus]:
+        raise NotImplementedError(f"Do not get directly from {self.__class__.__name__}.")
 
-    def get(self, name: str) -> Optional[TBaseCorpus]:
-        return self._collection.get(name)
+    def remove(self, id_: uuid.UUID | str):
+        raise NotImplementedError(f"Do not remove directly from {self.__class__.__name__}.")
 
     def items(self) -> list[TBaseCorpus]:
-        return list([c() for c in self._collection.values()])
+        return list([c_ref() for c_ref in self._collection.keys()])
 
+    def clear(self):
+        return NotImplementedError(f"Do not clear directly from {self.__class__.__name__}")
+
+    # UniqueIDProviderMixin
+    def is_unique_id(self, id_: uuid.UUID) -> bool:
+        return hash(id_.int) not in self._collection.keys()
+
+    # UniqueNameProviderMixin
     def is_unique_name(self, name: str) -> bool:
-        return name not in self._collection.keys()
+        # this is O(n)
+        for c_ref in self._collection.keys():
+            if name == c_ref().name:
+                return False
+        return True
