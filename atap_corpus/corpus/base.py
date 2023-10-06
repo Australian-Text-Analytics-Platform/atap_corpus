@@ -5,7 +5,7 @@ Must support:
 2. serialisation
 3. clonable
 """
-
+import uuid
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Iterable, Hashable, TypeVar, Optional
@@ -13,7 +13,6 @@ import logging
 
 from atap_corpus.interfaces import Clonable, Serialisable, Container
 from atap_corpus.types import PathLike
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
     """ Base Corpus
 
-    Base Corpus objects have unique names.
+    Base Corpus objects have unique IDs.
     This allows for a hidden centralised single-entry GlobalCorpora that is accessable at runtime.
     Note that the UniqueNameProvider does not have to be GlobalCorpora, as long as the names are unique.
 
@@ -29,12 +28,16 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
     """
 
     def __init__(self, name: Optional[str] = None):
-        if name is None:
-            from atap_corpus.registry import _Unique_Name_Provider
-            name = _Unique_Name_Provider.unique_name()
-        self._name = name
         from atap_corpus.registry import _Global_Corpora
+        if name is None:
+            name = _Global_Corpora.unique_name()
+        self._name = name
+        self._id = _Global_Corpora.unique_id()
         _Global_Corpora.add(corpus=self)
+
+    @property
+    def id(self) -> uuid.UUID:
+        return self._id
 
     @property
     def name(self) -> str:
@@ -42,24 +45,16 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
 
     @name.setter
     def name(self, name: str):
-        if not isinstance(name, str):
-            raise TypeError(f"name must be a str. Got {name.__class__.__name__}.")
-        from atap_corpus.registry import _Unique_Name_Provider
-        if not _Unique_Name_Provider.is_unique_name(name):
-            raise TypeError(f"{name} is not unique. Provide a unique name. See GlobalCorpora.")
+        from atap_corpus.registry import _Global_Corpora
+        if not _Global_Corpora.is_unique_name(name):
+            raise ValueError(f"{name} already exists.")
         self._name = name
 
     def serialise(self, path: PathLike) -> PathLike:
         return Path(path).with_suffix(".corp")
 
     def __hash__(self) -> int:
-        return hash(self.name)
-
-    def __del__(self):
-        # no super call required here - all abstract classes.
-        from atap_corpus.registry import _Global_Corpora
-        _Global_Corpora.remove(self.name)
-        logger.debug(f"Corpus collected {id(self)}.")
+        return hash(self.id.int)
 
 
 TBaseCorpus = TypeVar("TBaseCorpus", bound=BaseCorpus)

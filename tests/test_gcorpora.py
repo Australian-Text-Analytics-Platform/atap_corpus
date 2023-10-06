@@ -25,9 +25,6 @@ class TestGlobalCorpora(TestCase):
         dfcorpus = MockDataFrameCorpus()
         assert len(_Global_Corpora) == gcorpora_len + 1, f"{dfcorpus} was not added to GlobalCorpora."
 
-        gc_dfcorpus = _Global_Corpora.get(dfcorpus.name)
-        assert gc_dfcorpus is not None, f"Expecting {dfcorpus} in GlobalCorpora. Got {gc_dfcorpus}."
-
     def test_given_subclass_dfcorpus_ref_is_deleted_then_gcorpora_removes_it(self):
         gcorpora_len = len(_Global_Corpora)
         dfcorpus = MockDataFrameCorpus()
