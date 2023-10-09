@@ -188,13 +188,12 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
-    def __getitem__(self, item: int | slice) -> Docs:
+    def __getitem__(self, item: int | slice) -> Optional[Docs]:
         """ Returns a document or slice of corpus. or metadata series if str."""
         if len(self) == 0:
-            raise KeyError("Corpus is empty.")
+            return None
         if isinstance(item, str):
-            # todo: accesses meta data
-            pass
+            return self.get_meta(item)
         if isinstance(item, int):
             return self.docs().iloc[item]
         elif isinstance(item, slice):  # i.e. type=slice
