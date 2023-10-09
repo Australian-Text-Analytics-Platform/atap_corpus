@@ -44,7 +44,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     is kept for easier analysis of different sliced sub-corpus. You may choose the corpus to be `detached()` from this
     behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
-    _COL_DOC: str = 'document'
+    _COL_DOC: str = 'document_'
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'Corpus':
@@ -99,16 +99,6 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
             parent = parent.parent
         return parent
 
-    def docs(self) -> Docs:
-        return self.find_root()._df.loc[self._mask, self._COL_DOC]
-
-    def sample(self, n: int, rand_stat=None) -> 'Corpus':
-        """ Uniformly sample from the corpus. This creates a clone. """
-        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
-        name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
-        return self.cloned(mask, name=name)
-
     def cloned(self, mask: 'pd.Series[bool]', name: Optional[str] = None) -> 'Corpus':
         """ Returns a clone of itself by applying the boolean mask.
         The returned clone will retain a parent-child relationship from which it is cloned.
@@ -135,6 +125,21 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         detached = self.__class__(df[self._COL_DOC], name=name)
         return detached
 
+    def docs(self) -> Docs:
+        return self.find_root()._df.loc[self._mask, self._COL_DOC]
+
+    def metas(self) -> list[str]:
+        return list(self._df.columns)
+
+
+
+    def sample(self, n: int, rand_stat=None) -> 'Corpus':
+        """ Uniformly sample from the corpus. This creates a clone. """
+        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
+        return self.cloned(mask, name=name)
+
     def __len__(self):
         if self.is_root:
             return len(self._df) if self._df is not None else 0
@@ -147,9 +152,12 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
             yield self._df.iat[i, col_text_idx]
 
     def __getitem__(self, item: int | slice) -> Docs:
-        """ Returns a document or slice of corpus. """
+        """ Returns a document or slice of corpus. or metadata series if str."""
         if len(self) == 0:
             raise KeyError("Corpus is empty.")
+        if isinstance(item, str):
+            # todo: accesses meta data
+            pass
         if isinstance(item, int):
             return self.docs().iloc[item]
         elif isinstance(item, slice):  # i.e. type=slice
