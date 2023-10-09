@@ -128,12 +128,46 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     def docs(self) -> Docs:
         return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
+    @property
     def metas(self) -> list[str]:
         cols = list(self._df.columns)
         cols.remove(self._COL_DOC)
         return cols
 
+    def get_meta(self, name: str) -> pd.Series:
+        """ Get the meta series based on its name and return the entire series. """
+        if name == self._COL_DOC:
+            raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
+        return self._df.loc[:, name]
 
+    def add_meta(self, series: pd.Series | list | tuple, name: Optional[str] = None):
+        """ Adds a meta series into the Corpus. Realigns index with Corpus.
+        If mismatched size: raises ValueError.
+        """
+        if len(series) != len(self):
+            raise ValueError(
+                f"Added meta {series} does not align with Corpus size. Expecting {len(self)} Got {len(series)}"
+            )
+        if not isinstance(series, pd.Series | list | tuple):
+            raise TypeError("Meta must either be pd.Series, list or tuple.")
+        if isinstance(series, list | tuple):
+            series = pd.Series(series)
+        series = series.reindex(self._df.index)
+        if name is None: name = series.name
+        if name == self._COL_DOC:
+            raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
+        try:
+            # df.itertuples() uses namedtuple
+            # see https://docs.python.org/3/library/collections.html#collections.namedtuple
+            _ = namedtuple('_', [name])
+        except ValueError as _:
+            raise KeyError(f"Name of meta {name} must be a valid field name. Please rename.")
+        self._df[name] = series
+
+    def remove_meta(self, name: str):
+        """ Removes the meta series from the Corpus. """
+        self._df.drop(name, axis=1, inplace=True)
+        assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
 
     def sample(self, n: int, rand_stat=None) -> 'Corpus':
         """ Uniformly sample from the corpus. This creates a clone. """
