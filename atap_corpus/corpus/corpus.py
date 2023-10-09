@@ -129,7 +129,9 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
     def metas(self) -> list[str]:
-        return list(self._df.columns)
+        cols = list(self._df.columns)
+        cols.remove(self._COL_DOC)
+        return cols
 
 
 
