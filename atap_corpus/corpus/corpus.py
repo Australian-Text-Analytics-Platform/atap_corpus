@@ -48,7 +48,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     _COL_DOC: str = 'document_'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'Corpus':
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'DataFrameCorpus':
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
@@ -68,7 +68,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         return path
 
     @classmethod
-    def deserialise(cls, path: PathLike) -> 'Corpus':
+    def deserialise(cls, path: PathLike) -> 'DataFrameCorpus':
         raise NotImplementedError()
 
     def __init__(self, docs: Optional[pd.Series | list[str]] = None, name: str = None):
@@ -82,13 +82,13 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         self._mask: Mask = pd.Series(np.full(len(self._df), True))
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
-        self._parent: Optional['Corpus'] = None
+        self._parent: Optional['DataFrameCorpus'] = None
 
     def rename(self, name: str):
         self.name = name
 
     @property
-    def parent(self) -> 'Corpus':
+    def parent(self) -> 'DataFrameCorpus':
         """ Returns a read-only reference to the parent corpus. """
         return self._parent
 
@@ -96,7 +96,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     def is_root(self) -> bool:
         return self._parent is None
 
-    def find_root(self) -> 'Corpus':
+    def find_root(self) -> 'DataFrameCorpus':
         """ Find and return a copied reference to the root corpus. """
         if self.is_root: return self
         parent = self.parent
@@ -104,7 +104,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
             parent = parent.parent
         return parent
 
-    def cloned(self, mask: 'pd.Series[bool]', name: Optional[str] = None) -> 'Corpus':
+    def cloned(self, mask: Mask, name: Optional[str] = None) -> 'DataFrameCorpus':
         """ Returns a clone of itself by applying the boolean mask.
         The returned clone will retain a parent-child relationship from which it is cloned.
         To create a clone without the parent-child relationship, call detached() and del cloned.
@@ -122,7 +122,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         clone._mask = mask
         return clone
 
-    def detached(self) -> 'Corpus':
+    def detached(self) -> 'DataFrameCorpus':
         """ Detaches from corpus tree and returns a new Corpus instance as root. """
         df = self._df.copy().reset_index(drop=True)
         name = f"{self.name}-detached"
@@ -177,7 +177,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         self._df.drop(name, axis=1, inplace=True)
         assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
 
-    def sample(self, n: int, rand_stat=None) -> 'Corpus':
+    def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """
         mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
