@@ -11,6 +11,7 @@ Namely, these are:
 
 from unittest import TestCase
 
+import numpy as np
 import pandas as pd
 
 from atap_corpus.corpus.corpus import DataFrameCorpus
@@ -33,9 +34,18 @@ class TestDataFrameCorpus(TestCase):
     def test_create_empty_dfcorpus(self):
         empty = DataFrameCorpus()
         self.assertEqual(len(empty), 0)
-        with self.assertRaises(KeyError):
+        with self.assertRaises(IndexError):
             _ = empty[0]
-            _ = empty[0: 1]
+            _ = empty[0: 10]
+
+    def test_given_dfcorpus_of_size_when_index_larger_than_size_then_raise_IndexError(self):
+        size = len(self.root)
+        with self.assertRaises(IndexError):
+            self.root[size + 1]
+
+    def test_given_dfcorpus_when_negative_index_then_raise_indexError(self):
+        with self.assertRaises(IndexError):
+            self.root[-1]
 
     def test_given_dfcorpus_when_get_int_returns_correct_doc(self):
         get_int, get_int_label = self.root[0], data.iloc[0]
@@ -95,3 +105,26 @@ class TestDataFrameCorpus(TestCase):
                         f"Expecting parent as {id(parent)}. Got {id(child.parent)}")
         self.assertTrue(child.find_root() is self.root,
                         f"Expecting root is {id(self.root)}. Got {id(child.find_root())}")
+
+    def test_given_dfcorpus_when_add_and_get_meta_then_correct_meta_is_returned(self):
+        meta = pd.Series(np.arange(len(self.root)), name='meta')
+        self.root.add_meta(meta)
+        self.assertTrue(meta.name in self.root.metas, f"{meta.name} not in Corpus's metas.")
+        got_meta = self.root.get_meta(meta.name)
+        self.assertTrue(got_meta.equals(meta), f"Gotten meta did not match added meta.")
+
+    def test_given_dfcorpus_when_add_and_remove_meta_then_meta_is_removed(self):
+        meta = pd.Series(np.arange(len(self.root)), name='meta')
+        self.root.add_meta(meta)
+        self.assertTrue(meta.name in self.root.metas, f"{meta.name} not in Corpus's metas.")
+        self.root.remove_meta(meta.name)
+        self.assertTrue(meta.name not in self.root.metas, f"{meta.name} still in Corpus after removal.")
+
+    def test_given_dfcorpus_with_meta_when_getitem_then_correct_meta_is_returned(self):
+        # this is effectively the same as get_meta() but with syntactic sugar of __getitem__
+        # e.g. corpus['meta']
+        meta = pd.Series(np.arange(len(self.root)), name='meta')
+        self.root.add_meta(meta)
+        self.assertTrue(meta.name in self.root.metas, f"{meta.name} not in Corpus's metas.")
+        got_meta = self.root['meta']
+        self.assertTrue(got_meta.equals(meta), f"Gotten meta did not match added meta.")
