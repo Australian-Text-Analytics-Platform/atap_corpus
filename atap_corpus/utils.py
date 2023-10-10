@@ -1,7 +1,8 @@
 """ Collections of utility functions
 
 """
-from typing import Type, Any
+from typing import Type, Any, Optional
+from atap_corpus.types import PathLike
 
 
 def format_dunder_str(cls: Type[Any], *args, **kwargs) -> str:
@@ -31,3 +32,12 @@ def is_jupyter() -> bool:
 
 
 _IS_JUPYTER = is_jupyter()
+
+
+def setup_loggers(path: Optional[PathLike] = None):
+    if path is None: path = "./logging_conf.ini"
+    import logging.config
+    # loads logging configuration file at root.
+    logging.config.fileConfig(path)
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Loggers configured with {path}")
