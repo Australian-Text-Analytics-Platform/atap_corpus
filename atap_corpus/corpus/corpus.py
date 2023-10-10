@@ -59,9 +59,13 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         """ Export corpus as a dataframe. """
         return self._df.copy().reset_index(drop=True)
 
-    def serialise(self, path: PathLike) -> PathLike:
+    def serialise(self, path: PathLike, metas: list[str] | bool, dtms: list[str] | bool) -> PathLike:
         path = super().serialise(path)
-        raise NotImplementedError()
+        if metas is True: metas = self.metas
+        metas: list[str]
+        if dtms is True: dtms = None  # todo: add all custom dtms.
+        dtms: list[str]
+        return path
 
     @classmethod
     def deserialise(cls, path: PathLike) -> 'Corpus':
