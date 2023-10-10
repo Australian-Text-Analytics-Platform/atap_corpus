@@ -191,13 +191,20 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
-    def __getitem__(self, item: int | slice) -> Optional[Docs]:
-        """ Returns a document or slice of corpus. or metadata series if str."""
+    def __getitem__(self, item: int | slice | str) -> Docs:
+        """ Returns a document or slice of corpus. or metadata series if str.
+
+        This raises an error when Corpus is empty or when accessing an index larger than Corpus size.
+        """
         if len(self) == 0:
-            return None
+            raise IndexError("Empty corpus.")
         if isinstance(item, str):
             return self.get_meta(item)
         if isinstance(item, int):
+            if item >= len(self):
+                raise IndexError(f"You have given an index exceeding the Corpus size: {len(self)}.")
+            if item < 0:
+                raise IndexError("Index can only be positive integers.")
             return self.docs().iloc[item]
         elif isinstance(item, slice):  # i.e. type=slice
             if item.step is not None:
