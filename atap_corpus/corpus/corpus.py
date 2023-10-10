@@ -157,6 +157,9 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         if name is None: name = series.name
         if name == self._COL_DOC:
             raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
+        if not isinstance(name, str):
+            # dev - this is due to our syntactic sugar in __getitem__
+            raise ValueError("Only str meta names are supported.")
         try:
             # df.itertuples() uses namedtuple
             # see https://docs.python.org/3/library/collections.html#collections.namedtuple
