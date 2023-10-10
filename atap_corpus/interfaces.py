@@ -15,6 +15,7 @@ class Container(metaclass=ABCMeta):
     This class provides a common interface and enforce implementations of
     all classes that acts as a container of
     """
+
     @abstractmethod
     def add(self, obj: Any):
         """ Add object to container. """
@@ -50,8 +51,6 @@ class Serialisable(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def serialise(self, path: PathLike) -> PathLike:
+    def serialise(self, path: PathLike, *args, **kwargs) -> PathLike:
         """ Serialises configuration into a persistent format. """
         raise NotImplementedError()
-
-
