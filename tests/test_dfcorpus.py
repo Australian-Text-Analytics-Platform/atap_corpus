@@ -47,6 +47,7 @@ class TestDataFrameCorpus(TestCase):
         with self.assertRaises(IndexError):
             self.root[-1]
 
+    # clonable - tree behaviour of corpus.
     def test_given_dfcorpus_when_get_int_returns_correct_doc(self):
         get_int, get_int_label = self.root[0], data.iloc[0]
         self.assertEqual(get_int, get_int_label, f"Expecting {get_int_label}. Got {get_int}.")
@@ -106,6 +107,7 @@ class TestDataFrameCorpus(TestCase):
         self.assertTrue(child.find_root() is self.root,
                         f"Expecting root is {id(self.root)}. Got {id(child.find_root())}")
 
+    # meta data
     def test_given_dfcorpus_when_add_and_get_meta_then_correct_meta_is_returned(self):
         meta = pd.Series(np.arange(len(self.root)), name='meta')
         self.root.add_meta(meta)
