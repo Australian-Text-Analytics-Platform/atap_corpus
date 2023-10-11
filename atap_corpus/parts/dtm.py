@@ -1,16 +1,15 @@
 import contextlib
 import itertools
-from pathlib import Path
-from typing import Union, Iterable, TypeVar, Optional, Callable
 import logging
+from collections import Counter
+from typing import Union, Iterable, Optional, Callable
 
 import pandas as pd
 import numpy as np
 import scipy.sparse
 from scipy.sparse import csr_matrix, lil_matrix
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from sklearn.feature_extraction.text import CountVectorizer
 
-from atap_corpus.corpus.base import TBaseCorpus
 from atap_corpus.parts.base import BaseDTM, TFreqTable
 from atap_corpus.types import Docs, Doc
 
@@ -70,12 +69,20 @@ class DTM(BaseDTM):
     def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]]):
         docs = pd.Series(docs)  # dev - using pandas dependency here, we should refactor this to DataFrameDTM.
         series_of_terms: 'pd.Series[list[str]]' = docs.apply(tokeniser_func)
+        import inspect
+        return_annot = inspect.signature(tokeniser_func).return_annotation
+        if return_annot is not list[str]:
+            # dev - tradeoff taken here, a list[Any] is accepted else check will take too long.
+            if not series_of_terms.apply(type).eq(list).all():
+                raise TypeError("The tokeniser_func provided did not return a list.")
+
         terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
         matrix = lil_matrix((len(docs), len(terms)))  # perf: lil_matrix is most efficient for row-wise replacement.
         for i, doc_terms in enumerate(series_of_terms):
-            doc_terms = np.array(doc_terms)
-            binary_vector: 'np.ndarray[bool]' = np.any(terms[:, None] == doc_terms, axis=1)
-            matrix[i] = binary_vector.astype(int)
+            doc_terms = Counter(doc_terms)
+            count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms])
+            matrix[i] = count_vector
+
         dtm = cls()
         return dtm._init(matrix.tocsr(), terms)
 
