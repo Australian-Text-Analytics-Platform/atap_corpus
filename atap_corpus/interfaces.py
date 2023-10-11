@@ -1,19 +1,22 @@
 from typing import Any, Hashable, Optional
 from abc import ABCMeta, abstractmethod
 
+import pandas as pd
+
 from atap_corpus.types import Mask, PathLike
 
 
 class Clonable(metaclass=ABCMeta):
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self._parent: Optional['Clonable'] = None  # tracks the parent reference.
 
     # noinspection PyTypeChecker
     @abstractmethod
-    def cloned(self, mask: Mask) -> 'Clonable':
+    def cloned(self, mask: Mask, *args, **kwargs) -> 'Clonable':
         """ Returns the Clonable given a binary mask. """
-        self._parent = self
-        raise NotImplementedError()
+        cloneable = self.__class__(*args, **kwargs)
+        cloneable._parent = self
+        return cloneable
 
     @abstractmethod
     def detached(self) -> 'Clonable':
