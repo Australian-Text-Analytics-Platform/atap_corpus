@@ -28,6 +28,7 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
     """
 
     def __init__(self, name: Optional[str] = None):
+        super().__init__()
         from atap_corpus.registry import _Global_Corpora
         if name is None:
             name = _Global_Corpora.unique_name()
@@ -55,6 +56,11 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
 
     def __hash__(self) -> int:
         return hash(self.id.int)
+
+    @abstractmethod
+    def __len__(self) -> int:
+        """ Returns the number of documents in the Corpus. """
+        raise NotImplementedError()
 
 
 TBaseCorpus = TypeVar("TBaseCorpus", bound=BaseCorpus)

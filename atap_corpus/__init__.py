@@ -1,4 +1,3 @@
-import logging.config
+from atap_corpus.utils import setup_loggers
 
-# loads logging configuration file at root.
-logging.config.fileConfig("./logging_conf.ini")
+setup_loggers("./logging_conf.ini")

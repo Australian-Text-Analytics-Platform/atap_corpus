@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Generator
+from typing import Optional, Generator, Callable
+from collections import namedtuple
 
 import numpy as np
 import pandas as pd
@@ -9,8 +10,10 @@ from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpus
 from atap_corpus.corpus.mixins import SpacyDocsMixin
+from atap_corpus.parts.base import BaseDTM
+from atap_corpus.parts.dtm import DTM
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus.types import PathLike, Docs, Mask
+from atap_corpus.types import PathLike, Docs, Mask, Doc
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -44,10 +47,10 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     is kept for easier analysis of different sliced sub-corpus. You may choose the corpus to be `detached()` from this
     behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
-    _COL_DOC: str = 'document'
+    _COL_DOC: str = 'document_'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'Corpus':
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'DataFrameCorpus':
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
@@ -58,12 +61,16 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         """ Export corpus as a dataframe. """
         return self._df.copy().reset_index(drop=True)
 
-    def serialise(self, path: PathLike) -> PathLike:
+    def serialise(self, path: PathLike, metas: list[str] | bool, dtms: list[str] | bool) -> PathLike:
         path = super().serialise(path)
-        raise NotImplementedError()
+        if metas is True: metas = self.metas
+        metas: list[str]
+        if dtms is True: dtms = None  # todo: add all custom dtms.
+        dtms: list[str]
+        return path
 
     @classmethod
-    def deserialise(cls, path: PathLike) -> 'Corpus':
+    def deserialise(cls, path: PathLike) -> 'DataFrameCorpus':
         raise NotImplementedError()
 
     def __init__(self, docs: Optional[pd.Series | list[str]] = None, name: str = None):
@@ -74,42 +81,17 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
+        self._parent: Optional[DataFrameCorpus]  # only for type hints
         self._mask: Mask = pd.Series(np.full(len(self._df), True))
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
-        self._parent: Optional['Corpus'] = None
+
+        self._dtms: dict[str, BaseDTM | Mask] = dict()
 
     def rename(self, name: str):
         self.name = name
 
-    @property
-    def parent(self) -> 'Corpus':
-        """ Returns a read-only reference to the parent corpus. """
-        return self._parent
-
-    @property
-    def is_root(self) -> bool:
-        return self._parent is None
-
-    def find_root(self) -> 'Corpus':
-        """ Find and return a copied reference to the root corpus. """
-        if self.is_root: return self
-        parent = self.parent
-        while not parent.is_root:
-            parent = parent.parent
-        return parent
-
-    def docs(self) -> Docs:
-        return self.find_root()._df.loc[self._mask, self._COL_DOC]
-
-    def sample(self, n: int, rand_stat=None) -> 'Corpus':
-        """ Uniformly sample from the corpus. This creates a clone. """
-        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
-        name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
-        return self.cloned(mask, name=name)
-
-    def cloned(self, mask: 'pd.Series[bool]', name: Optional[str] = None) -> 'Corpus':
+    def cloned(self, mask: Mask, name: Optional[str] = None) -> 'DataFrameCorpus':
         """ Returns a clone of itself by applying the boolean mask.
         The returned clone will retain a parent-child relationship from which it is cloned.
         To create a clone without the parent-child relationship, call detached() and del cloned.
@@ -122,18 +104,112 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         mask = mask.astype('bool')
         name = f"{self.name}." if name is None else f"{self.name}.{name}"  # dot notation
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
-        clone = self.__class__(name=name)
-        clone._parent = self
+        clone = super().cloned(mask, name=name)
+        clone: DataFrameCorpus
         clone._mask = mask
         return clone
 
-    def detached(self) -> 'Corpus':
+    def detached(self) -> 'DataFrameCorpus':
         """ Detaches from corpus tree and returns a new Corpus instance as root. """
         df = self._df.copy().reset_index(drop=True)
         name = f"{self.name}-detached"
         name = _Unique_Name_Provider.unique_name_number_suffixed(name=name)
         detached = self.__class__(df[self._COL_DOC], name=name)
         return detached
+
+    def docs(self) -> Docs:
+        return self.find_root()._df.loc[self._mask, self._COL_DOC]
+
+    @property
+    def metas(self) -> list[str]:
+        """ Returns a list of strings representing the metadata in the Corpus. """
+        cols = list(self._df.columns)
+        cols.remove(self._COL_DOC)
+        return cols
+
+    def get_meta(self, name: str) -> pd.Series:
+        """ Get the meta series based on its name and return the entire series. """
+        if name == self._COL_DOC:
+            raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
+        return self._df.loc[:, name]
+
+    def add_meta(self, series: pd.Series | list | tuple, name: Optional[str] = None):
+        """ Adds a meta series into the Corpus. Realigns index with Corpus.
+        If mismatched size: raises ValueError.
+        """
+        if len(series) != len(self):
+            raise ValueError(
+                f"Added meta {series} does not align with Corpus size. Expecting {len(self)} Got {len(series)}"
+            )
+        if not isinstance(series, pd.Series | list | tuple):
+            raise TypeError("Meta must either be pd.Series, list or tuple.")
+        if isinstance(series, list | tuple):
+            series = pd.Series(series)
+        series = series.reindex(self._df.index)
+        if name is None: name = series.name
+        if name == self._COL_DOC:
+            raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
+        if not isinstance(name, str):
+            # dev - this is due to our syntactic sugar in __getitem__
+            raise ValueError("Only str meta names are supported.")
+        try:
+            # df.itertuples() uses namedtuple
+            # see https://docs.python.org/3/library/collections.html#collections.namedtuple
+            _ = namedtuple('_', [name])
+        except ValueError as _:
+            raise KeyError(f"Name of meta {name} must be a valid field name. Please rename.")
+        self._df[name] = series
+
+    def remove_meta(self, name: str):
+        """ Removes the meta series from the Corpus. """
+        self._df.drop(name, axis=1, inplace=True)
+        assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
+
+    @property
+    def dtms(self) -> dict[str, BaseDTM]:
+        """ Returns a shallow copy of the dictionary storing the DTMs. i.e. read-only"""
+        if self.is_root:
+            return self._dtms.copy()
+        else:
+            root = self.find_root()
+            dtms: dict[str, BaseDTM] = dict()
+            for name, root_dtm in root._dtms.items():
+                dtms[name] = root_dtm.cloned(self._mask)
+            return dtms
+
+    def get_dtm(self, name: str):
+        root = self.find_root()
+        if not name in root._dtms.keys():
+            raise KeyError(f"DTM: {name} does not exist.")
+        root_dtm: BaseDTM = root._dtms[name]
+        if self.is_root:
+            return root_dtm
+        else:
+            return root_dtm.cloned(self._mask)
+
+    def add_dtm(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
+        root = self.find_root()
+        if name in root._dtms.keys():
+            raise ValueError(f"{name} already exist. Maybe remove it?")
+        if not self.is_root:
+            logger.warning(f"This corpus is not root. DTM {name} will be created from root.")
+        dtm = DTM.from_docs(root.docs(), tokeniser_func=tokeniser_func)
+        root._dtms[name] = dtm
+        assert name in self.dtms.keys(), f"Missing {name} from DTMs after creation. This check should always pass."
+
+    def remove_dtm(self, name: str):
+        root = self.find_root()
+        try:
+            del root._dtms[name]
+        except KeyError:
+            raise KeyError(f"DTM with name: {name} not found.")
+
+    def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
+        """ Uniformly sample from the corpus. This creates a clone. """
+        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
+        return self.cloned(mask, name=name)
 
     def __len__(self):
         if self.is_root:
@@ -146,11 +222,20 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
-    def __getitem__(self, item: int | slice) -> Docs:
-        """ Returns a document or slice of corpus. """
+    def __getitem__(self, item: int | slice | str) -> Docs:
+        """ Returns a document or slice of corpus. or metadata series if str.
+
+        This raises an error when Corpus is empty or when accessing an index larger than Corpus size.
+        """
         if len(self) == 0:
-            raise KeyError("Corpus is empty.")
+            raise IndexError("Empty corpus.")
+        if isinstance(item, str):
+            return self.get_meta(item)
         if isinstance(item, int):
+            if item >= len(self):
+                raise IndexError(f"You have given an index exceeding the Corpus size: {len(self)}.")
+            if item < 0:
+                raise IndexError("Index can only be positive integers.")
             return self.docs().iloc[item]
         elif isinstance(item, slice):  # i.e. type=slice
             if item.step is not None:
