@@ -2,13 +2,13 @@
 
 Provides a standardised base Corpus structure for ATAP tools.
 
-Different Corpus can be sliced into subcorpus based on different criterias and will always return an instance subclass
-of BaseCorpus.
+Different Corpus can be sliced into subcorpus based on different criterias and will always return an subclass
+instance of BaseCorpus.
 The slicing criteria is highly flexible, it accepts a user defined function and comes with convenience slicing
 operations layered on top of it out-of-the-box.
 Subcorpus maintains a parent-child relationship with original corpus in a tree internally.
 
-Corpus can also be serialised and deserialised which can be used to carry across different ATAP analytical notebooks.
+Corpus can also be serialised and deserialised which can be used to carry across different ATAP analytics notebooks.
 
 ```shell
 pip install atap_corpus
