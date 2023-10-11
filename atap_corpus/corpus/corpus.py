@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Generator
+from typing import Optional, Generator, Callable
 from collections import namedtuple
 
 import numpy as np
@@ -10,8 +10,10 @@ from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpus
 from atap_corpus.corpus.mixins import SpacyDocsMixin
+from atap_corpus.parts.base import BaseDTM
+from atap_corpus.parts.dtm import DTM
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus.types import PathLike, Docs, Mask
+from atap_corpus.types import PathLike, Docs, Mask, Doc
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -84,6 +86,8 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
 
+        self._dtms: dict[str, BaseDTM | Mask] = dict()
+
     def rename(self, name: str):
         self.name = name
 
@@ -101,7 +105,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         name = f"{self.name}." if name is None else f"{self.name}.{name}"  # dot notation
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
         clone = super().cloned(mask, name=name)
-        clone._parent = self
+        clone: DataFrameCorpus
         clone._mask = mask
         return clone
 
@@ -118,6 +122,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
 
     @property
     def metas(self) -> list[str]:
+        """ Returns a list of strings representing the metadata in the Corpus. """
         cols = list(self._df.columns)
         cols.remove(self._COL_DOC)
         return cols
@@ -159,6 +164,45 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         """ Removes the meta series from the Corpus. """
         self._df.drop(name, axis=1, inplace=True)
         assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
+
+    @property
+    def dtms(self) -> dict[str, BaseDTM]:
+        """ Returns a shallow copy of the dictionary storing the DTMs. i.e. read-only"""
+        if self.is_root:
+            return self._dtms.copy()
+        else:
+            root = self.find_root()
+            dtms: dict[str, BaseDTM] = dict()
+            for name, root_dtm in root._dtms.items():
+                dtms[name] = root_dtm.cloned(self._mask)
+            return dtms
+
+    def get_dtm(self, name: str):
+        root = self.find_root()
+        if not name in root._dtms.keys():
+            raise KeyError(f"DTM: {name} does not exist.")
+        root_dtm: BaseDTM = root._dtms[name]
+        if self.is_root:
+            return root_dtm
+        else:
+            return root_dtm.cloned(self._mask)
+
+    def add_dtm(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
+        root = self.find_root()
+        if name in root._dtms.keys():
+            raise ValueError(f"{name} already exist. Maybe remove it?")
+        if not self.is_root:
+            logger.warning(f"This corpus is not root. DTM {name} will be created from root.")
+        dtm = DTM.from_docs(root.docs(), tokeniser_func=tokeniser_func)
+        root._dtms[name] = dtm
+        assert name in self.dtms.keys(), f"Missing {name} from DTMs after creation. This check should always pass."
+
+    def remove_dtm(self, name: str):
+        root = self.find_root()
+        try:
+            del root._dtms[name]
+        except KeyError:
+            raise KeyError(f"DTM with name: {name} not found.")
 
     def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """

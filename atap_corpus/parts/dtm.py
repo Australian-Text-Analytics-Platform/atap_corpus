@@ -1,15 +1,15 @@
 import contextlib
-from pathlib import Path
-from typing import Union, Iterable, TypeVar, Optional
+import itertools
 import logging
+from collections import Counter
+from typing import Union, Iterable, Optional, Callable
 
 import pandas as pd
 import numpy as np
 import scipy.sparse
-from scipy.sparse import csr_matrix
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+from scipy.sparse import csr_matrix, lil_matrix
+from sklearn.feature_extraction.text import CountVectorizer
 
-from atap_corpus.corpus.base import TBaseCorpus
 from atap_corpus.parts.base import BaseDTM, TFreqTable
 from atap_corpus.types import Docs, Doc
 
@@ -25,8 +25,8 @@ This serves 3 purposes:
     2. performance reasons so that we don't need to rebuild a dtm each time.
     3. indexing is a very inexpensive operation.
 
-Dependencies: 
-sklearn CountVectorizer
+dev notes:
++ csr matrix is chosen for efficient cloning since they're row-wise slicing operations.
 """
 
 DEFAULT_COUNTVEC_TOKENISER_PATTERN = r'(?u)\b\w{3,}\b'  # includes single letter words like 'a'
@@ -44,8 +44,8 @@ class DTM(BaseDTM):
     """
 
     @classmethod
-    def from_documents_with_vectoriser(cls, docs: Docs | Iterable[Doc],
-                                       token_pattern: str = DEFAULT_COUNTVEC_TOKENISER_PATTERN) -> 'DTM':
+    def from_docs_with_vectoriser(cls, docs: Docs | Iterable[Doc],
+                                  token_pattern: str = DEFAULT_COUNTVEC_TOKENISER_PATTERN) -> 'DTM':
         """ Initialise a DTM from a collection of documents. """
         cvectoriser = CountVectorizer(token_pattern=token_pattern)
         matrix = cvectoriser.fit_transform(docs)
@@ -64,6 +64,27 @@ class DTM(BaseDTM):
         assert matrix.shape[1] == num_terms, f"Mismatched terms. Matrix shape {matrix.shape} and {num_terms} terms."
         if not scipy.sparse.issparse(matrix): matrix = csr_matrix(matrix)
         return cls()._init(matrix, terms)
+
+    @classmethod
+    def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]]):
+        docs = pd.Series(docs)  # dev - using pandas dependency here, we should refactor this to DataFrameDTM.
+        series_of_terms: 'pd.Series[list[str]]' = docs.apply(tokeniser_func)
+        import inspect
+        return_annot = inspect.signature(tokeniser_func).return_annotation
+        if return_annot is not list[str]:
+            # dev - tradeoff taken here, a list[Any] is accepted else check will take too long.
+            if not series_of_terms.apply(type).eq(list).all():
+                raise TypeError("The tokeniser_func provided did not return a list.")
+
+        terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
+        matrix = lil_matrix((len(docs), len(terms)))  # perf: lil_matrix is most efficient for row-wise replacement.
+        for i, doc_terms in enumerate(series_of_terms):
+            doc_terms = Counter(doc_terms)
+            count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms])
+            matrix[i] = count_vector
+
+        dtm = cls()
+        return dtm._init(matrix.tocsr(), terms)
 
     def __init__(self):
         super().__init__()
