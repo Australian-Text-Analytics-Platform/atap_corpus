@@ -75,7 +75,7 @@ class TestDataFrameCorpus(TestCase):
         self.assertEqual(len(child), sum(test_child_mask),
                          f"Expecting size {sum(test_child_mask)}. Got {len(child)}.")
 
-    def test_given_dfcorpus_when_cloned_then_parent_child_refs_is_valid(self):
+    def test_given_dfcorpus_when_cloned_then_parent_child_refs_are_valid(self):
         parent = self.root.cloned(test_parent_mask)
         self.assertTrue(parent.parent is self.root,
                         f"Expecting parent as {id(self.root)}. Got {id(parent.parent)}")
