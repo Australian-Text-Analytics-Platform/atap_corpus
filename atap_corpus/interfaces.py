@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 from atap_corpus.types import Mask, PathLike
 
 TClonable = TypeVar("TClonable", bound='Clonable')
+TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
 
 
 class Clonable(metaclass=ABCMeta):
@@ -77,7 +78,7 @@ class Serialisable(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def deserialise(cls, path: PathLike) -> 'Serialisable':
+    def deserialise(cls, path: PathLike) -> TSerialisable:
         """ Deserialise configuration and return the deserialised object. """
         raise NotImplementedError()
 
