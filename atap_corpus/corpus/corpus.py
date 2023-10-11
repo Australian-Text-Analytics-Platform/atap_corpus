@@ -100,7 +100,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         mask = mask.astype('bool')
         name = f"{self.name}." if name is None else f"{self.name}.{name}"  # dot notation
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
-        clone = self.__class__(name=name)
+        clone = super().cloned(mask, name=name)
         clone._parent = self
         clone._mask = mask
         return clone

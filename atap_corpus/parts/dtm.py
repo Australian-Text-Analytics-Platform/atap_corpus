@@ -155,16 +155,15 @@ class DTM(BaseDTM):
         return self.find_root()._matrix is not None
 
     def cloned(self, mask: 'pd.Series[bool]') -> 'DTM':
-        super().cloned(mask)
+        clone = super().cloned(mask)
         row_indices = mask[mask].index
-        cloned = self.__class__()
-        cloned._row_indices = row_indices
-        if cloned._is_built:
+        clone._row_indices = row_indices
+        if clone._is_built:
             try:
-                cloned.matrix
+                clone.matrix
             except Exception as e:
                 raise RuntimeError([RuntimeError("Failed to clone DTM."), e])
-        return cloned
+        return clone
 
     def detached(self) -> 'DTM':
         detached = self.__class__()
