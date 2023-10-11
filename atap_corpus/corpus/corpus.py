@@ -10,6 +10,7 @@ from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpus
 from atap_corpus.corpus.mixins import SpacyDocsMixin
+from atap_corpus.parts.base import BaseDTM
 from atap_corpus.registry import _Unique_Name_Provider
 from atap_corpus.types import PathLike, Docs, Mask
 from atap_corpus.utils import format_dunder_str
@@ -84,6 +85,8 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
 
+        self._dtms: dict[str, BaseDTM] = dict()
+
     def rename(self, name: str):
         self.name = name
 
@@ -101,8 +104,13 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         name = f"{self.name}." if name is None else f"{self.name}.{name}"  # dot notation
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
         clone = super().cloned(mask, name=name)
-        clone._parent = self
+        clone: DataFrameCorpus
         clone._mask = mask
+
+        _dtms: dict[str, BaseDTM] = dict()
+        for key, dtm in self.dtms.items():
+            _dtms[key] = dtm.cloned(mask)
+        clone._dtms = _dtms
         return clone
 
     def detached(self) -> 'DataFrameCorpus':
@@ -118,9 +126,15 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
 
     @property
     def metas(self) -> list[str]:
+        """ Returns a list of strings representing the metadata in the Corpus. """
         cols = list(self._df.columns)
         cols.remove(self._COL_DOC)
         return cols
+
+    @property
+    def dtms(self) -> dict[str, BaseDTM]:
+        """ Returns a copy of the dictionary storing the DTMs."""
+        return self._dtms.copy()
 
     def get_meta(self, name: str) -> pd.Series:
         """ Get the meta series based on its name and return the entire series. """
