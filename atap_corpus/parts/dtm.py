@@ -1,12 +1,13 @@
 import contextlib
+import itertools
 from pathlib import Path
-from typing import Union, Iterable, TypeVar, Optional
+from typing import Union, Iterable, TypeVar, Optional, Callable
 import logging
 
 import pandas as pd
 import numpy as np
 import scipy.sparse
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, lil_matrix
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
 from atap_corpus.corpus.base import TBaseCorpus
@@ -25,8 +26,8 @@ This serves 3 purposes:
     2. performance reasons so that we don't need to rebuild a dtm each time.
     3. indexing is a very inexpensive operation.
 
-Dependencies: 
-sklearn CountVectorizer
+dev notes:
++ csr matrix is chosen for efficient cloning since they're row-wise slicing operations.
 """
 
 DEFAULT_COUNTVEC_TOKENISER_PATTERN = r'(?u)\b\w{3,}\b'  # includes single letter words like 'a'
@@ -44,8 +45,8 @@ class DTM(BaseDTM):
     """
 
     @classmethod
-    def from_documents_with_vectoriser(cls, docs: Docs | Iterable[Doc],
-                                       token_pattern: str = DEFAULT_COUNTVEC_TOKENISER_PATTERN) -> 'DTM':
+    def from_docs_with_vectoriser(cls, docs: Docs | Iterable[Doc],
+                                  token_pattern: str = DEFAULT_COUNTVEC_TOKENISER_PATTERN) -> 'DTM':
         """ Initialise a DTM from a collection of documents. """
         cvectoriser = CountVectorizer(token_pattern=token_pattern)
         matrix = cvectoriser.fit_transform(docs)
@@ -64,6 +65,19 @@ class DTM(BaseDTM):
         assert matrix.shape[1] == num_terms, f"Mismatched terms. Matrix shape {matrix.shape} and {num_terms} terms."
         if not scipy.sparse.issparse(matrix): matrix = csr_matrix(matrix)
         return cls()._init(matrix, terms)
+
+    @classmethod
+    def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]]):
+        docs = pd.Series(docs)  # dev - using pandas dependency here, we should refactor this to DataFrameDTM.
+        series_of_terms: 'pd.Series[str]' = docs.apply(tokeniser_func)
+        terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
+        matrix = lil_matrix((len(docs), len(terms)))  # perf: lil_matrix is most efficient for row-wise replacement.
+        for i, doc_terms in enumerate(series_of_terms):
+            doc_terms = np.array(doc_terms)
+            binary_vector: 'np.ndarray[bool]' = np.any(terms[:, None] == doc_terms, axis=1)
+            matrix[i] = binary_vector.astype(int)
+        dtm = cls()
+        return dtm._init(matrix.tocsr(), terms)
 
     def __init__(self):
         super().__init__()

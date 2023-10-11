@@ -24,7 +24,7 @@ test_child_mask = pd.Series([0, 1, 0], dtype=bool)
 
 class TestDTM(TestCase):
     def setUp(self):
-        self.root = DTM.from_documents_with_vectoriser(docs)
+        self.root = DTM.from_docs(docs, lambda doc: doc.split())
 
     def test_given_dtm_when_clone_then_cloned_is_correct(self):
         parent = self.root.cloned(test_parent_mask)
