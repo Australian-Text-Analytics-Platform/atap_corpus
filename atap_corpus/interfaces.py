@@ -1,37 +1,37 @@
-from typing import Any, Hashable, Optional
+from typing import Any, Hashable, Optional, TypeVar
 from abc import ABCMeta, abstractmethod
 
-import pandas as pd
-
 from atap_corpus.types import Mask, PathLike
+
+TClonable = TypeVar("TClonable", bound='Clonable')
 
 
 class Clonable(metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
-        self._parent: Optional['Clonable'] = None  # tracks the parent reference.
+        self._parent: Optional[TClonable] = None  # tracks the parent reference.
 
     # noinspection PyTypeChecker
     @abstractmethod
-    def cloned(self, mask: Mask, *args, **kwargs) -> 'Clonable':
+    def cloned(self, mask: Mask, *args, **kwargs) -> TClonable:
         """ Returns the Clonable given a binary mask. """
         cloneable = self.__class__(*args, **kwargs)
         cloneable._parent = self
         return cloneable
 
     @abstractmethod
-    def detached(self) -> 'Clonable':
+    def detached(self) -> TClonable:
         """ Detaches from the tree and return a copy of itself."""
         raise NotImplementedError()
 
     @property
-    def parent(self) -> 'Clonable':
+    def parent(self) -> TClonable:
         return self._parent
 
     @property
     def is_root(self) -> bool:
         return self._parent is None
 
-    def find_root(self) -> 'Clonable':
+    def find_root(self) -> TClonable:
         """ Returns the root of the cloned object. """
         if self._parent is None: return self
         if self.is_root: return self
