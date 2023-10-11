@@ -6,9 +6,9 @@ Related:
 This test suite ensures core behaviours of the DataFrameCorpus is behaving correctly.
 Namely, these are:
 + read behaviours - get, len, iter
-+ clone behaviours - clone, parent, root, detached
++ clone behaviours - clone, parent, root, detached      (also for meta and dtms)
 """
-
+import logging
 from unittest import TestCase
 
 import numpy as np
@@ -30,6 +30,18 @@ class MockDataFrameCorpus(DataFrameCorpus):
 class TestDataFrameCorpus(TestCase):
     def setUp(self):
         self.root = MockDataFrameCorpus()
+
+        # used to test corpus dtms
+        self.tokeniser_func = lambda doc: doc.split()
+
+        # suppress warnings
+        from atap_corpus.corpus.corpus import logger
+        self.logger = logger
+        self.level_orig = logger.level
+        self.logger.setLevel(logging.ERROR)
+
+    def tearDown(self):
+        self.logger.setLevel(self.level_orig)
 
     def test_create_empty_dfcorpus(self):
         empty = DataFrameCorpus()
@@ -130,3 +142,35 @@ class TestDataFrameCorpus(TestCase):
         self.assertTrue(meta.name in self.root.metas, f"{meta.name} not in Corpus's metas.")
         got_meta = self.root['meta']
         self.assertTrue(got_meta.equals(meta), f"Gotten meta did not match added meta.")
+
+    def test_given_dfcorpus_when_add_dtm_then_dtm_is_added(self):
+        self.root.add_dtm(self.tokeniser_func, name='tokens')
+        self.assertTrue(self.root.dtms['tokens'] is not None, "Missing tokens DTM after adding.")
+
+    def test_given_dfcorpus_when_cloned_and_add_dtm_then_dtm_is_added_to_root_and_clones(self):
+        parent = self.root.cloned(test_parent_mask)
+        parent.add_dtm(self.tokeniser_func, name='tokens')
+        self.assertTrue(self.root.dtms['tokens'] is not None, "Missing tokens DTM in root after adding in parent.")
+        self.assertTrue(parent.dtms['tokens'] is not None, "Missing tokens DTM in parent after adding in parent.")
+        child = parent.cloned(test_child_mask)
+        child.add_dtm(self.tokeniser_func, name='tokens2')
+        self.assertTrue(self.root.dtms['tokens2'] is not None, "Missing tokens2 DTM in root after adding in child.")
+        self.assertTrue(child.dtms['tokens2'] is not None, "Missing tokens2 DTM in child after adding in child.")
+
+    def test_given_dfcorpus_with_dtm_and_cloned_then_child_dtms_are_correct(self):
+        self.root.add_dtm(self.tokeniser_func, name='tokens')
+        parent = self.root.cloned(test_parent_mask)
+        self.assertEqual(parent.dtms['tokens'].shape[0], len(parent),
+                         "Mismatched parent DTM number of docs and parent corpus")
+        child = parent.cloned(test_child_mask)
+        self.assertEqual(child.dtms['tokens'].shape[0], len(child),
+                         "Mismatched child DTM number of docs and child corpus")
+
+    def test_given_dfcorpus_and_cloned_and_add_dtm_then_child_dtms_are_correct(self):
+        parent = self.root.cloned(test_parent_mask)
+        parent.add_dtm(self.tokeniser_func, name='tokens')
+        self.assertEqual(parent.dtms['tokens'].shape[0], len(parent),
+                         "Mismatched parent DTM number of docs and parent corpus")
+        child = parent.cloned(test_child_mask)
+        self.assertEqual(child.dtms['tokens'].shape[0], len(child),
+                         "Mismatched child DTM number of docs and child corpus")
