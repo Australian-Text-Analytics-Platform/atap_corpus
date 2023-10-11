@@ -69,7 +69,7 @@ class DTM(BaseDTM):
     @classmethod
     def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]]):
         docs = pd.Series(docs)  # dev - using pandas dependency here, we should refactor this to DataFrameDTM.
-        series_of_terms: 'pd.Series[str]' = docs.apply(tokeniser_func)
+        series_of_terms: 'pd.Series[list[str]]' = docs.apply(tokeniser_func)
         terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
         matrix = lil_matrix((len(docs), len(terms)))  # perf: lil_matrix is most efficient for row-wise replacement.
         for i, doc_terms in enumerate(series_of_terms):
