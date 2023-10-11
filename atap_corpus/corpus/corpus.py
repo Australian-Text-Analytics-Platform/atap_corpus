@@ -79,30 +79,13 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
+        self._parent: Optional[DataFrameCorpus]  # only for type hints
         self._mask: Mask = pd.Series(np.full(len(self._df), True))
         # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
         # a million documents should equate to ~1Mb
-        self._parent: Optional['DataFrameCorpus'] = None
 
     def rename(self, name: str):
         self.name = name
-
-    @property
-    def parent(self) -> 'DataFrameCorpus':
-        """ Returns a read-only reference to the parent corpus. """
-        return self._parent
-
-    @property
-    def is_root(self) -> bool:
-        return self._parent is None
-
-    def find_root(self) -> 'DataFrameCorpus':
-        """ Find and return a copied reference to the root corpus. """
-        if self.is_root: return self
-        parent = self.parent
-        while not parent.is_root:
-            parent = parent.parent
-        return parent
 
     def cloned(self, mask: Mask, name: Optional[str] = None) -> 'DataFrameCorpus':
         """ Returns a clone of itself by applying the boolean mask.

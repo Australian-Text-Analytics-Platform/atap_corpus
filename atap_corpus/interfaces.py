@@ -1,13 +1,41 @@
-from typing import Any, Hashable, Protocol, runtime_checkable
+from typing import Any, Hashable, Optional
 from abc import ABCMeta, abstractmethod
 
 from atap_corpus.types import Mask, PathLike
 
 
 class Clonable(metaclass=ABCMeta):
+    def __init__(self):
+        self._parent: Optional['Clonable'] = None  # tracks the parent reference.
+
+    # noinspection PyTypeChecker
     @abstractmethod
     def cloned(self, mask: Mask) -> 'Clonable':
+        """ Returns the Clonable given a binary mask. """
+        self._parent = self
         raise NotImplementedError()
+
+    @abstractmethod
+    def detached(self) -> 'Clonable':
+        """ Detaches from the tree and return a copy of itself."""
+        raise NotImplementedError()
+
+    @property
+    def parent(self) -> 'Clonable':
+        return self._parent
+
+    @property
+    def is_root(self) -> bool:
+        return self._parent is None
+
+    def find_root(self) -> 'Clonable':
+        """ Returns the root of the cloned object. """
+        if self._parent is None: return self
+        if self.is_root: return self
+        parent = self.parent
+        while not parent.is_root:
+            parent = parent.parent
+        return parent
 
 
 class Container(metaclass=ABCMeta):
