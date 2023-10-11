@@ -81,10 +81,11 @@ class SpacyDocsMixin(object):
             return functools.partial(tokenise, tokeniser)
 
 
+#  UniqueNameProviderMixin is unused and kept for possible future uses only. Replaced by UniqueIDProviderMixin.
+#  It was initially used for GlobalCorpora where the uniqueness property is exhibited by the Corpus names.
 # dev - UniqueNameProvider & UniqueIDProvider may inherit from the same parent if it seems code should be reused.
 #  although it could make the function names unclear.
-#  some redundant abstract behaviours are kept for these reasons.
-#  UniqueNameProviderMixin is unused and kept for possible future uses only. Replaced by UniqueIDProviderMixin.
+#  some overlapping abstract behaviours are kept for these reasons.
 class UniqueNameProviderMixin(object):
     """ Provides unique name generator functions as a Mixin. """
 
