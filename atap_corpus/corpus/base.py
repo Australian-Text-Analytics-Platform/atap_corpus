@@ -56,6 +56,11 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
     def __hash__(self) -> int:
         return hash(self.id.int)
 
+    @abstractmethod
+    def __len__(self) -> int:
+        """ Returns the number of documents in the Corpus. """
+        raise NotImplementedError()
+
 
 TBaseCorpus = TypeVar("TBaseCorpus", bound=BaseCorpus)
 
