@@ -11,7 +11,7 @@ class BaseFreqTable(metaclass=ABCMeta):
 TFreqTable = TypeVar("TFreqTable", bound=BaseFreqTable)
 
 
-class BaseDTM(metaclass=ABCMeta, Clonable):
+class BaseDTM(Clonable, metaclass=ABCMeta):
     # todo: core interface functions need to be defined here.
     @abstractmethod
     def to_freqtable(self) -> TFreqTable:

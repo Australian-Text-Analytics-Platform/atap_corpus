@@ -9,7 +9,8 @@ import scipy.sparse
 from scipy.sparse import csr_matrix
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
-from atap_corpus.parts.base import BaseDTM
+from atap_corpus.corpus.base import TBaseCorpus
+from atap_corpus.parts.base import BaseDTM, TFreqTable
 from atap_corpus.types import Docs, Doc
 
 """ Document Term Matrix DTM
@@ -28,8 +29,6 @@ Dependencies:
 sklearn CountVectorizer
 """
 
-TVectorizer = TypeVar('TVectorizer', bound=CountVectorizer)
-
 DEFAULT_COUNTVEC_TOKENISER_PATTERN = r'(?u)\b\w{3,}\b'  # includes single letter words like 'a'
 
 logger = logging.getLogger(__name__)
@@ -45,39 +44,63 @@ class DTM(BaseDTM):
     """
 
     @classmethod
-    def from_wordlists(cls, wordlists: Iterable[Iterable[str]]) -> 'DTM':
-        """ Initialise a DTM from a list of word lists."""
-        return cls().initialise(wordlists)
+    def from_documents_with_vectoriser(cls, docs: Docs | Iterable[Doc],
+                                       token_pattern: str = DEFAULT_COUNTVEC_TOKENISER_PATTERN) -> 'DTM':
+        """ Initialise a DTM from a collection of documents. """
+        cvectoriser = CountVectorizer(token_pattern=token_pattern)
+        matrix = cvectoriser.fit_transform(docs)
+        terms = cvectoriser.get_feature_names_out()
+        dtm = cls()
+        return dtm._init(matrix, terms)
 
     @classmethod
-    def from_documents_with_vectoriser(cls, docs: Docs | Iterable[Doc]) -> 'DTM':
-        """ Initialise a DTM from a collection of documents. """
-        pass
+    def from_matrix(cls, matrix: Union[np.ndarray, np.matrix, csr_matrix], terms: np.ndarray | list[str]):
+        """ Initialise a DTM from a matrix (np, scipy.sparse). """
+        num_terms: int
+        if isinstance(terms, list): num_terms = len(terms)
+        elif isinstance(terms, np.ndarray) and len(terms.shape) == 1: num_terms = terms.shape[0]
+        elif isinstance(terms, np.ndarray) and len(terms.shape) == 2: num_terms = terms.shape[1]
+        else: raise ValueError(f"Expecting terms to be either list or array but got {type(terms)}.")
+        assert matrix.shape[1] == num_terms, f"Mismatched terms. Matrix shape {matrix.shape} and {num_terms} terms."
+        if not scipy.sparse.issparse(matrix): matrix = csr_matrix(matrix)
+        return cls()._init(matrix, terms)
 
     def __init__(self):
-        self.root = self
-        self._vectorizer = None  # todo: can be removed.
+        super().__init__()
         self._matrix: Optional[csr_matrix] = None
-        self._feature_names_out: Optional[np.ndarray] = None
-        self._term_idx_map = None
-        self.derived_from = None  # for any dtms derived from word frequencies
+        self._terms: Optional[np.ndarray] = None  # dev - np.ndarray is used to enable masking.
+        self._term_idx_map: Optional[dict[str, int]] = None
 
         # only used for child dtms (do not override these)
         self._row_indices = None
         self._col_indices = None
 
-    @property
-    def is_built(self) -> bool:
-        return self.root._matrix is not None
+    def _init(self, matrix: csr_matrix, terms: np.ndarray) -> 'DTM':
+        """ Proper initialisation of the root DTM.
+        _matrix and _terms needs to hold None to adhere to tree-based Clonable DTM (saves memory)
+
+        dev - use this function when initialising a root DTM. e.g. in from_* class methods.
+        """
+        self._matrix = matrix
+        self._terms = terms
+        self._term_idx_map: dict[str, int] = {self._terms[idx]: idx for idx in range(len(self._terms))}
+        return self
 
     @property
     def matrix(self):
-        matrix = self.root._matrix
+        matrix = self.find_root()._matrix
         if self._row_indices is not None:
             matrix = matrix[self._row_indices, :]
         if self._col_indices is not None:
             matrix = matrix[:, self._col_indices]
         return matrix
+
+    @property
+    def terms(self) -> list[str]:
+        """ Return the terms in the current dtm. """
+        terms = self.find_root()._terms
+        terms = terms if self._col_indices is None else terms[self._col_indices]
+        return list(terms)
 
     @property
     def shape(self):
@@ -96,58 +119,60 @@ class DTM(BaseDTM):
         return self.matrix.sum()
 
     @property
-    def terms_freq_vector(self):
+    def terms_vector(self):
         """ Returns a vector of term counts for each term. """
         return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
 
     @property
-    def docs_size_vector(self):
+    def docs_vector(self):
         """ Returns a vector of term counts for each document. """
         return np.asarray(self.matrix.sum(axis=1)).squeeze(axis=1)
-
-    @property
-    def vectorizer(self):
-        return self.root._vectorizer
-
-    @property
-    def term_names(self):
-        """ Return the terms in the current dtm. """
-        features = self.root._feature_names_out
-        return features if self._col_indices is None else features[self._col_indices]
 
     def vocab(self, nonzero: bool = False) -> set[str]:
         """ Returns a set of terms in the current dtm. """
         if nonzero:
-            return set(self.term_names[self.terms_freq_vector.nonzero()[0]])
+            return set(self.terms[self.terms_freq_vector.nonzero()[0]])
         else:
-            return set(self.term_names)
+            return set(self.terms)
 
-    def initialise(self, texts: Iterable[str],
-                   vectorizer: TVectorizer = CountVectorizer(token_pattern=DEFAULT_COUNTVEC_TOKENISER_PATTERN)) \
-            -> 'DTM':
-        logger.debug("Building document-term matrix. Please wait...")
-        self.root._vectorizer = vectorizer
-        try:
-            self.root._matrix = self.root._vectorizer.fit_transform(texts)
-            self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()  # expensive operation - cached.
-        except ValueError as ve:
-            num_texts = len(list(texts))
-            self.root._matrix = scipy.sparse.csr_matrix((num_texts, 0))
-            self.root._feature_names_out = np.empty(0)
-
-        self.root._term_idx_map = {self.root._feature_names_out[idx]: idx
-                                   for idx in range(len(self.root._feature_names_out))}
-        logger.debug("Done.")
-        return self
-
-    def terms_column_vectors(self, terms: Union[str, list[str]]):
-        """ Return the term vector represented by the documents. """
+    def vectors_of(self, terms: Union[str, list[str]]) -> csr_matrix:
+        """ Return a subset of DTM matrix given terms.
+        If a provided term is not found, those vectors will be missing from the matrix.
+        """
         cols: Union[int, list[int]]
+        term_idx_map = self.find_root()._term_idx_map
         if isinstance(terms, str):
-            cols = self._term_to_idx(terms)
+            cols = term_idx_map.get(terms, list())
         else:
-            cols = [self._term_to_idx(term) for term in terms]
+            cols = list()
+            for term in terms:
+                col = term_idx_map.get(term, None)
+                if col is None: continue
+                cols.append(col)
         return self.matrix[:, cols]
+
+    def _is_built(self) -> bool:
+        return self.find_root()._matrix is not None
+
+    def cloned(self, mask: 'pd.Series[bool]') -> 'DTM':
+        super().cloned(mask)
+        row_indices = mask[mask].index
+        cloned = self.__class__()
+        cloned._row_indices = row_indices
+        if cloned._is_built:
+            try:
+                cloned.matrix
+            except Exception as e:
+                raise RuntimeError([RuntimeError("Failed to clone DTM."), e])
+        return cloned
+
+    def detached(self) -> 'DTM':
+        detached = self.__class__()
+        detached._init(self.matrix, np.array(self.terms))
+        return detached
+
+    def to_dataframe(self) -> 'pd.DataFrame[csr_matrix]':
+        return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.terms)
 
     def to_lists_of_terms(self) -> list[list[str]]:
         """ Return the DTM as lists of list of terms."""
@@ -155,54 +180,36 @@ class DTM(BaseDTM):
         word_lists = [list() for _ in range(self.shape[0])]
         for row, col in zip(*nonzeros):
             freq = self.matrix[row, col]
-            term = self.term_names[col]
+            term = self.terms[col]
             terms = [term] * freq
             word_lists[row].extend(terms)
         return word_lists
 
-    def _term_to_idx(self, term: str):
-        if term not in self.root._term_idx_map.keys(): raise ValueError(f"'{term}' not found in document-term-matrix.")
-        return self.root._term_idx_map.get(term)
+    def to_freqtable(self) -> TFreqTable:
+        pass  # todo
 
-    def cloned(self, mask: 'pd.Series[bool]') -> 'DTM':
-        row_indices = mask[mask].index
-        cloned = DTM()
-        cloned.root = self.root
-        cloned._row_indices = row_indices
-        if cloned.is_built:
-            try:
-                cloned.matrix
-            except Exception as e:
-                raise RuntimeError([RuntimeError("Failed to clone DTM."), e])
-        return cloned
+    def shares_vocab(self, other: 'DTM') -> bool:
+        """ Check if the other DTM shares current DTM's vocab """
+        this, other = self.vocab(nonzero=True), other.vocab(nonzero=True)
+        if not len(this) == len(other): return False
+        return len(this.difference(other)) == 0
 
-    def tfidf(self, **kwargs):
-        """ Returns an un-normalised tfidf of the current matrix. A new DTM is returned.
+    def __repr__(self):
+        if self._is_built:
+            return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
+        else:
+            return f"<DTM Uninitialised>"
 
-        Args: see sklearn.TfidfTransformer
-        norm is set to None by default here.
-        """
-        kwargs['use_idf'] = kwargs.get('use_idf', True)
-        kwargs['smooth_idf'] = kwargs.get('smooth_idf', True)
-        kwargs['sublinear_tf'] = kwargs.get('sublinear_tf', False)
-        kwargs['norm'] = kwargs.get('norm', None)
-        tfidf_trans = TfidfTransformer(**kwargs)
-        tfidf = DTM()
-        tfidf.derived_from = self
-        tfidf._vectorizer = tfidf_trans
-        tfidf._matrix = tfidf._vectorizer.fit_transform(self.matrix)
-        tfidf._feature_names_out = self.term_names
-        tfidf._term_idx_map = {tfidf._feature_names_out[idx]: idx for idx in range(len(tfidf._feature_names_out))}
-        return tfidf
+    def __str__(self):
+        return self.__repr__()
 
-    def to_dataframe(self) -> pd.DataFrame:
-        return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.term_names)
+    # -- allow for context manager - i.e. 'with' syntax.
 
     @contextlib.contextmanager
     def without_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
         """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
         try:
-            features = self.root._feature_names_out
+            features = self.find_root()._terms
             self._col_indices = np.isin(features, list(terms), invert=True).nonzero()[0]
             yield self
         finally:
@@ -211,46 +218,21 @@ class DTM(BaseDTM):
     @contextlib.contextmanager
     def with_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
         try:
-            features = self.root._feature_names_out
+            features = self.find_root()._terms
             self._col_indices = np.isin(features, list(terms), invert=False).nonzero()[0]
             yield self
         finally:
             self._col_indices = None
 
-    @classmethod
-    def from_matrix(cls, matrix: Union[np.ndarray, np.matrix, csr_matrix], terms: np.ndarray):
-        num_terms: int
-        if isinstance(terms, list): num_terms = len(terms)
-        elif isinstance(terms, np.ndarray) and len(terms.shape) == 1: num_terms = terms.shape[0]
-        elif isinstance(terms, np.ndarray) and len(terms.shape) == 2: num_terms = terms.shape[1]
-        else: raise ValueError(f"Expecting terms to be either list or array but got {type(terms)}.")
-        assert matrix.shape[1] == num_terms, f"Mismatched terms. Matrix shape {matrix.shape} and {num_terms} terms."
-        if not scipy.sparse.issparse(matrix):
-            logger.warning(f"Accepted a non sparse matrix as DTM, this may be expensive in memory.")
-        dtm = cls()
-        dtm._matrix = matrix
-        dtm._feature_names_out = terms
-        return dtm
-
-    def shares_vocab(self, other: 'DTM') -> bool:
-        """ Check if the other DTM shares current DTM's vocab """
-        this, other = self.vocab(nonzero=True), other.vocab(nonzero=True)
-        if not len(this) == len(other): return False
-        return len(this.difference(other)) == 0
-
-    def terms_aligned(self, other: 'DTM') -> bool:
-        """ Check if the other DTM's terms are index aligned with current DTM """
-        this, other = self.term_names, other.term_names
-        if not len(this) == len(other): return False
-        return (this == other).all()
+    # -- merging with another DTM - this function is not used.
 
     def merged(self, other: 'DTM'):
         """Merge other DTM with current."""
-        if self.terms_aligned(other):
+        if self._terms_aligned(other):
             m = scipy.sparse.vstack((self.matrix, other.matrix))
-            feature_names_out = self._feature_names_out  # unchanged since terms are shared
+            feature_names_out = self._terms  # unchanged since terms are shared
         else:
-            if len(other.term_names) >= len(self.term_names):
+            if len(other.terms) >= len(self.terms):
                 big, small = other, self
             else:
                 big, small = self, other
@@ -278,18 +260,18 @@ class DTM(BaseDTM):
             num_docs_sm_and_bg = big.num_docs + small.num_docs
             assert m.shape[0] == num_docs_sm_and_bg, \
                 f"Documents incorrectly merged. Total documents: {num_docs_sm_and_bg}. Got {m.shape[0]}."
-            feature_names_out = np.concatenate([small.term_names, big.term_names[indx_missing]])
+            feature_names_out = np.concatenate([small.terms, big.terms[indx_missing]])
 
         # replace with new matrix.
         other = DTM()
         other._matrix = m
-        other._feature_names_out = feature_names_out
+        other._terms = feature_names_out
         return other
 
     def _build_top_right_merged_matrix(self, big, small):
         # 1. build top matrix: shape = (small.num_docs, small.num_terms + missing terms from big)
         # perf: assume_uniq - improves performance and terms are unique.
-        mask_missing = np.isin(big.term_names, small.term_names, assume_unique=True, invert=True)
+        mask_missing = np.isin(big.terms, small.terms, assume_unique=True, invert=True)
         indx_missing = mask_missing.nonzero()[0]
         # create zero matrix in top right since small doesn't have these terms in their documents.
         top_right = scipy.sparse.csr_matrix((small.num_docs, indx_missing.shape[0]), dtype=small.matrix.dtype)
@@ -302,7 +284,7 @@ class DTM(BaseDTM):
         # 2. build bottom matrix: shape = (big.num_docs, small.num_terms + missing terms from big)
         # bottom-left: shape = (big.num_docs, small.num_terms)
         #   align overlapping term indices from big with small term indices
-        intersect = np.intersect1d(big.term_names, small.term_names, assume_unique=True, return_indices=True)
+        intersect = np.intersect1d(big.terms, small.terms, assume_unique=True, return_indices=True)
         intersect_terms, bg_intersect_indx, sm_intersect_indx = intersect
         bottom_left = scipy.sparse.lil_matrix((big.num_docs, small.num_terms))  # perf: lil for column replacement
         for i, idx in enumerate(sm_intersect_indx):
@@ -314,12 +296,8 @@ class DTM(BaseDTM):
     def _build_bottom_right_merged_matrix(self, big, indx_missing):
         return big.matrix[:, indx_missing]
 
-    def __repr__(self):
-        if self.is_built:
-            return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
-        else:
-            return f"<DTM Uninitialised>"
-
-    def is_compatible(self, corpus: 'Corpus') -> bool:
-        """ Checks if this DTM is compatible with corpus. """
-        return len(corpus) == self.shape[0]
+    def _terms_aligned(self, other: 'DTM') -> bool:
+        """ Check if the other DTM's terms are index aligned with current DTM """
+        this, other = self.terms, other.terms
+        if not len(this) == len(other): return False
+        return (this == other).all()
