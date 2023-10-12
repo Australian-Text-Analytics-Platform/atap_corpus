@@ -2,16 +2,19 @@ import contextlib
 import itertools
 import logging
 from collections import Counter
+from pathlib import Path
 from typing import Union, Iterable, Optional, Callable
 
 import pandas as pd
 import numpy as np
 import scipy.sparse
-from scipy.sparse import csr_matrix, lil_matrix
+import srsly
+from scipy.sparse import csr_matrix, lil_matrix, save_npz, load_npz
 from sklearn.feature_extraction.text import CountVectorizer
 
+from atap_corpus.interfaces import TSerialisable
 from atap_corpus.parts.base import BaseDTM, TFreqTable
-from atap_corpus.types import Docs, Doc
+from atap_corpus.types import Docs, Doc, PathLike
 
 """ Document Term Matrix DTM
 
@@ -42,6 +45,23 @@ class DTM(BaseDTM):
 
     Internally, DTM stores a sparse matrix which is computed using sklearn's CountVectorizer.
     """
+
+    @classmethod
+    def deserialise(cls, path: PathLike) -> TSerialisable:
+        path = Path(path)
+        mtx_path = path.with_suffix(".npz")
+        trm_path = path.with_suffix(".terms")
+        matrix = load_npz(mtx_path)
+        terms = srsly.read_msgpack(trm_path)
+        return cls.from_matrix(matrix, terms)
+
+    def serialise(self, path: PathLike, *args, **kwargs) -> PathLike:
+        path = Path(path)
+        mtx_path = path.with_suffix(".npz")
+        trm_path = path.with_suffix(".terms")
+        save_npz(mtx_path, self.matrix)
+        srsly.write_msgpack(trm_path, self.terms)
+        return path
 
     @classmethod
     def from_docs_with_vectoriser(cls, docs: Docs | Iterable[Doc],
