@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 
 from atap_corpus.corpus.base import BaseCorpora, TBaseCorpus, BaseCorpus
-from atap_corpus.corpus.mixins import UniqueIDProviderMixin, UniqueNameProviderMixin
+from atap_corpus.mixins import UniqueIDProviderMixin, UniqueNameProviderMixin
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)

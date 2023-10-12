@@ -9,7 +9,7 @@ import spacy.tokens
 from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpus
-from atap_corpus.corpus.mixins import SpacyDocsMixin
+from atap_corpus.mixins import SpacyDocsMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
 from atap_corpus.registry import _Unique_Name_Provider
