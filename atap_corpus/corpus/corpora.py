@@ -87,16 +87,12 @@ class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin
 
     def __new__(cls: Type['_GlobalCorpora']) -> '_GlobalCorpora':
         if cls._instance is None:
-            instance = super().__new__(cls)
-            instance.__init__()
+            instance = super(_GlobalCorpora, cls).__new__(cls)
             cls._instance = instance
+            instance._collection: wref.WeakKeyDictionary[wref.ReferenceType[TBaseCorpus], dict]
+            instance._collection = wref.WeakKeyDictionary()
             logger.debug("GlobalCorpora singleton created.")
         return cls._instance
-
-    def __init__(self, *args, **kwargs):
-        if self._instance is not None: return  # otherwise super().__init__() is called again which empties collection.
-        super().__init__(*args, **kwargs)
-        self._collection: wref.WeakKeyDictionary[wref.ReferenceType[TBaseCorpus], dict] = wref.WeakKeyDictionary()
 
     def add(self, corpus: TBaseCorpus):
         self._collection[corpus] = dict(created=datetime.now())
