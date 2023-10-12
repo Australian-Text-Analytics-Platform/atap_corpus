@@ -1,3 +1,6 @@
-from atap_corpus.utils import setup_loggers
+from atap_corpus.utils import _IS_JUPYTER
 
-setup_loggers("./logging_conf.ini")
+if _IS_JUPYTER:
+    from atap_corpus.utils import setup_loggers
+
+    setup_loggers("./logging_conf.ini")
