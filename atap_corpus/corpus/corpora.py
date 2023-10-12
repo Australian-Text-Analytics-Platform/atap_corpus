@@ -104,7 +104,7 @@ class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin
         raise NotImplementedError(f"Do not remove directly from {self.__class__.__name__}.")
 
     def items(self) -> list[TBaseCorpus]:
-        return list(self._collection.keys())
+        return list(self._collection.keyrefs())
 
     def clear(self):
         return NotImplementedError(f"Do not clear directly from {self.__class__.__name__}")
