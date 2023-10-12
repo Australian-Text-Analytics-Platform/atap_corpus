@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod
-from typing import TypeVar
+from typing import TypeVar, Callable
 
 from atap_corpus.interfaces import Clonable
+from atap_corpus.types import Docs, Doc
 
 
 class BaseFreqTable(metaclass=ABCMeta):
@@ -16,3 +17,8 @@ class BaseDTM(Clonable, metaclass=ABCMeta):
     @abstractmethod
     def to_freqtable(self) -> TFreqTable:
         pass
+
+    @classmethod
+    @abstractmethod
+    def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]], *args, **kwargs):
+        raise NotImplementedError()

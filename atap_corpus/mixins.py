@@ -1,13 +1,15 @@
 import uuid
 from abc import abstractmethod
-from typing import Optional, Callable, Hashable
+from typing import Optional, Callable, Type
 import functools
 import logging
 
 import spacy
 import coolname
 
+from atap_corpus.parts.base import BaseDTM
 from atap_corpus.types import Doc
+from atap_corpus.interfaces import Clonable
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +57,9 @@ class SpacyDocsMixin(object):
     ability to use spacy docs and the functionalities that comes with it.
     """
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     @abstractmethod
     def uses_spacy(self) -> bool:
         """ Whether spacy is used. """
@@ -84,6 +89,82 @@ class SpacyDocsMixin(object):
                 return list([t.text for t in tokeniser(text)])
 
             return functools.partial(tokenise, tokeniser)
+
+
+class ClonableDTMRegistryMixin(object):
+    """ ClonableDTMRegistryMixin provides re-usable clonable registry that stores DTMs.
+
+    Use this Mixin to inherit the ability to store multiple DTMs and accessing the
+    correct DTM clone associated with the clone of your Clonable class.
+
+    What you'll need to define:
+    + dtm_cls: the BaseDTM subclass you want to use with this Mixin.
+
+    This Mixin must be used with a Clonable class.
+
+    A Mixin is used instead of a strict class hierarchy because I don't forsee having a need for one
+    and this behaviour can be standalone.
+    (unless perhaps you want to have multiple DTM types in your class that all clones..?)
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not issubclass(self.__class__, Clonable):
+            raise TypeError(f"{self.__class__.__name__} must inherit from {Clonable.__name__}.")
+        self: Clonable
+
+        # prevents accidental overwriting in subclasses.
+        # sorry, this is the only state in this Mixin i promise.
+        self.__dtms: dict[str, BaseDTM] = dict()
+
+    @property
+    @abstractmethod
+    def dtm_cls(self) -> Type[BaseDTM]:
+        """ Define which BaseDTM subclass you're using in your class with this Mixin."""
+        raise NotImplementedError()
+
+    @property
+    def dtms(self) -> dict[str, BaseDTM]:
+        """ Returns a shallow copy of the dictionary storing the DTMs. i.e. read-only"""
+        self: Clonable | 'ClonableDTMRegistryMixin'
+        if self.is_root:
+            return self.__dtms.copy()
+        else:
+            root: 'ClonableDTMRegistryMixin' = self.find_root()
+            dtms: dict[str, BaseDTM] = dict()
+            for name, root_dtm in root.__dtms.items():
+                dtms[name] = root_dtm.cloned(self._mask)
+            return dtms
+
+    def get_dtm(self, name: str):
+        self: Clonable | 'ClonableDTMRegistryMixin'
+        root: 'ClonableDTMRegistryMixin' = self.find_root()
+        if name not in root.__dtms.keys():
+            raise KeyError(f"DTM: {name} does not exist.")
+        root_dtm: BaseDTM = root.__dtms[name]
+        if self.is_root:
+            return root_dtm
+        else:
+            return root_dtm.cloned(self._mask)
+
+    def add_dtm(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
+        self: Clonable | 'ClonableDTMRegistryMixin'
+        root = self.find_root()
+        if name in root.__dtms.keys():
+            raise ValueError(f"{name} already exist. Maybe remove it?")
+        if not self.is_root:
+            logger.warning(f"This corpus is not root. DTM {name} will be created from root.")
+        dtm = self.dtm_cls.from_docs(root.docs(), tokeniser_func=tokeniser_func)
+        root.__dtms[name] = dtm
+        assert name in self.dtms.keys(), f"Missing {name} from DTMs after creation. This check should always pass."
+
+    def remove_dtm(self, name: str):
+        self: Clonable
+        root = self.find_root()
+        try:
+            del root.__dtms[name]
+        except KeyError:
+            raise KeyError(f"DTM with name: {name} not found.")
 
 
 #  UniqueNameProviderMixin is unused and kept for possible future uses only. Replaced by UniqueIDProviderMixin.

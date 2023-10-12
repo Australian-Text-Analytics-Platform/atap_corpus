@@ -10,6 +10,7 @@ TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
 class Clonable(metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
         self._parent: Optional[TClonable] = None  # tracks the parent reference.
+        self._mask: Optional[Mask] = None
 
     # noinspection PyTypeChecker
     @abstractmethod
@@ -17,6 +18,7 @@ class Clonable(metaclass=ABCMeta):
         """ Returns the Clonable given a binary mask. """
         cloneable = self.__class__(*args, **kwargs)
         cloneable._parent = self
+        cloneable._mask = mask
         return cloneable
 
     @abstractmethod

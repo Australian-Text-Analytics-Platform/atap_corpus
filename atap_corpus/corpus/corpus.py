@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Generator, Callable
+from typing import Optional, Generator, Callable, Type
 from collections import namedtuple
 
 import numpy as np
@@ -9,7 +9,7 @@ import spacy.tokens
 from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpus
-from atap_corpus.mixins import SpacyDocsMixin
+from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
 from atap_corpus.registry import _Unique_Name_Provider
@@ -27,7 +27,7 @@ def ensure_docs(docs: pd.Series) -> Docs:
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
 
-class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
+class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
     """ Corpus
     This class abstractly represents a corpus which is a collection of documents.
     Each document is also described by their metadata and is used for functions such as slicing.
@@ -47,6 +47,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
     is kept for easier analysis of different sliced sub-corpus. You may choose the corpus to be `detached()` from this
     behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
+
     _COL_DOC: str = 'document_'
 
     @classmethod
@@ -85,7 +86,7 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         self._parent: Optional[DataFrameCorpus]
         self._mask: Optional[Mask]
 
-        self._dtms: dict[str, BaseDTM | Mask] = dict()
+        self._dtms: dict[str, BaseDTM] = dict()
 
     def rename(self, name: str):
         self.name = name
@@ -105,7 +106,6 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
         clone = super().cloned(mask, name=name)
         clone: DataFrameCorpus
-        clone._mask = mask
         return clone
 
     def detached(self) -> 'DataFrameCorpus':
@@ -167,45 +167,6 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         self._df.drop(name, axis=1, inplace=True)
         assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
 
-    @property
-    def dtms(self) -> dict[str, BaseDTM]:
-        """ Returns a shallow copy of the dictionary storing the DTMs. i.e. read-only"""
-        if self.is_root:
-            return self._dtms.copy()
-        else:
-            root = self.find_root()
-            dtms: dict[str, BaseDTM] = dict()
-            for name, root_dtm in root._dtms.items():
-                dtms[name] = root_dtm.cloned(self._mask)
-            return dtms
-
-    def get_dtm(self, name: str):
-        root = self.find_root()
-        if not name in root._dtms.keys():
-            raise KeyError(f"DTM: {name} does not exist.")
-        root_dtm: BaseDTM = root._dtms[name]
-        if self.is_root:
-            return root_dtm
-        else:
-            return root_dtm.cloned(self._mask)
-
-    def add_dtm(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
-        root = self.find_root()
-        if name in root._dtms.keys():
-            raise ValueError(f"{name} already exist. Maybe remove it?")
-        if not self.is_root:
-            logger.warning(f"This corpus is not root. DTM {name} will be created from root.")
-        dtm = DTM.from_docs(root.docs(), tokeniser_func=tokeniser_func)
-        root._dtms[name] = dtm
-        assert name in self.dtms.keys(), f"Missing {name} from DTMs after creation. This check should always pass."
-
-    def remove_dtm(self, name: str):
-        root = self.find_root()
-        try:
-            del root._dtms[name]
-        except KeyError:
-            raise KeyError(f"DTM with name: {name} not found.")
-
     def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """
         mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
@@ -252,6 +213,11 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
 
     def __str__(self) -> str:
         return format_dunder_str(self.__class__, self.name, {"size": len(self)})
+
+    # -- ClonableDTMRegistryMixin
+    @property
+    def dtm_cls(self) -> Type[BaseDTM]:
+        return DTM
 
     # -- SpacyDocMixin --
     def uses_spacy(self) -> bool:
