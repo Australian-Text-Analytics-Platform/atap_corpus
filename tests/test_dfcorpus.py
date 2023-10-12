@@ -8,7 +8,7 @@ Namely, these are:
 + read behaviours - get, len, iter
 + clone behaviours - clone, parent, root, detached      (also for meta and dtms)
 """
-import logging
+import logging.config
 from unittest import TestCase
 
 import numpy as np
@@ -28,20 +28,15 @@ class MockDataFrameCorpus(DataFrameCorpus):
 
 
 class TestDataFrameCorpus(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        logging.basicConfig(level=logging.ERROR)
+
     def setUp(self):
         self.root = MockDataFrameCorpus()
 
         # used to test corpus dtms
         self.tokeniser_func = lambda doc: doc.split()
-
-        # suppress warnings
-        from atap_corpus.corpus.corpus import logger
-        self.logger = logger
-        self.level_orig = logger.level
-        self.logger.setLevel(logging.ERROR)
-
-    def tearDown(self):
-        self.logger.setLevel(self.level_orig)
 
     def test_create_empty_dfcorpus(self):
         empty = DataFrameCorpus()
