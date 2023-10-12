@@ -81,10 +81,9 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
 
-        self._parent: Optional[DataFrameCorpus]  # only for type hints
-        self._mask: Mask = pd.Series(np.full(len(self._df), True))
-        # dev - a full mask is kept for root to avoid excessive conditional checks. Binary mask is memory cheap.
-        # a million documents should equate to ~1Mb
+        # from super - nothing is overwritten here just typehints.
+        self._parent: Optional[DataFrameCorpus]
+        self._mask: Optional[Mask]
 
         self._dtms: dict[str, BaseDTM | Mask] = dict()
 
@@ -118,7 +117,10 @@ class DataFrameCorpus(BaseCorpus, SpacyDocsMixin):
         return detached
 
     def docs(self) -> Docs:
-        return self.find_root()._df.loc[self._mask, self._COL_DOC]
+        if self.is_root:
+            return self._df.loc[:, self._COL_DOC]
+        else:
+            return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
     @property
     def metas(self) -> list[str]:
