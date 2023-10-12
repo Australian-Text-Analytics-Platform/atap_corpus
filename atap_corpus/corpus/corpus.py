@@ -1,4 +1,6 @@
 import logging
+import zipfile
+from pathlib import Path
 from typing import Optional, Generator, Callable, Type
 from collections import namedtuple
 
@@ -64,14 +66,31 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
 
     def serialise(self, path: PathLike, metas: list[str] | bool, dtms: list[str] | bool) -> PathLike:
         path = super().serialise(path)
+
+        if not self.is_root:
+            logger.warning("You are serialising a subcorpus. When you deserialise this it'll be a root corpus.")
+
         if metas is True: metas = self.metas
-        metas: list[str]
-        if dtms is True: dtms = None  # todo: add all custom dtms.
-        dtms: list[str]
+        cols = [self._COL_DOC]
+        cols.extend(metas)
+        if dtms is True: dtms = list(self.dtms.keys())
+
+        to_serialise_df = self._df.loc[:, cols]
+        with zipfile.ZipFile(path, 'w') as z:
+            with z.open("df.parquet", 'w') as zdf:
+                to_serialise_df.to_parquet(zdf, engine='pyarrow')
+
+            z.mkdir("dtms")
+            for dtm_key in dtms:
+                dtm: BaseDTM = self.dtms.get(dtm_key)
+
+                # todo: write dtms to the dtms/ folder
+                dtm.serialise()
         return path
 
     @classmethod
     def deserialise(cls, path: PathLike) -> 'DataFrameCorpus':
+        # todo: deserialise
         raise NotImplementedError()
 
     def __init__(self, docs: Optional[pd.Series | list[str]] = None, name: str = None):
