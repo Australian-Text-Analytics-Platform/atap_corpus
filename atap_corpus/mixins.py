@@ -48,7 +48,12 @@ class UniqueIDProviderMixin(object):
 
 
 class SpacyDocsMixin(object):
-    """ """
+    """ This Mixin class is not yet clearly defined as the usages are not completely established.
+
+    SpacyDocsMixin is supposed to provide reusable spacy related functions.
+    It also distinguishes classes (typically BaseCorpus children at this stage) from having the
+    ability to use spacy docs and the functionalities that comes with it.
+    """
 
     @abstractmethod
     def uses_spacy(self) -> bool:
