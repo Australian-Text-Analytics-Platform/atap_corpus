@@ -2,7 +2,7 @@
 
 """
 from typing import Type, Any, Optional
-from atap_corpus.types import PathLike
+from atap_corpus._types import PathLike
 
 
 def format_dunder_str(cls: Type[Any], *args, **kwargs) -> str:

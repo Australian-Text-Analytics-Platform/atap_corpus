@@ -15,7 +15,7 @@ from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus.types import PathLike, Docs, Mask, Doc
+from atap_corpus._types import PathLike, Docs, Mask, Doc
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)

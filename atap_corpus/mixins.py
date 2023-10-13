@@ -8,7 +8,7 @@ import spacy
 import coolname
 
 from atap_corpus.parts.base import BaseDTM
-from atap_corpus.types import Doc
+from atap_corpus._types import Doc
 from atap_corpus.interfaces import Clonable
 
 logger = logging.getLogger(__name__)

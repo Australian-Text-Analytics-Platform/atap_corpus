@@ -1,7 +1,8 @@
+import io
 from typing import Any, Hashable, Optional, TypeVar
 from abc import ABCMeta, abstractmethod
 
-from atap_corpus.types import Mask, PathLike
+from atap_corpus._types import Mask, PathLike
 
 TClonable = TypeVar("TClonable", bound='Clonable')
 TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
@@ -44,6 +45,7 @@ class Clonable(metaclass=ABCMeta):
         return parent
 
 
+# dev - not sure if we should use Protocol or ABC.
 class Container(metaclass=ABCMeta):
     """ Container abstract class
     This class provides a common interface and enforce implementations of
@@ -76,15 +78,16 @@ class Container(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
+# dev - not sure if we should use Protocol or ABC.
 class Serialisable(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def deserialise(cls, path: PathLike) -> TSerialisable:
+    def deserialise(cls, path: PathLike | io.IOBase) -> TSerialisable:
         """ Deserialise configuration and return the deserialised object. """
         raise NotImplementedError()
 
     @abstractmethod
-    def serialise(self, path: PathLike, *args, **kwargs) -> PathLike:
+    def serialise(self, path: PathLike | io.IOBase, *args, **kwargs) -> PathLike:
         """ Serialises configuration into a persistent format. """
         raise NotImplementedError()

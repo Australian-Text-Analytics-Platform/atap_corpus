@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import TypeVar, Callable
 
 from atap_corpus.interfaces import Clonable, Serialisable
-from atap_corpus.types import Docs, Doc
+from atap_corpus._types import Docs, Doc
 
 
 class BaseFreqTable(metaclass=ABCMeta):

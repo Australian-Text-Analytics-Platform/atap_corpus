@@ -12,7 +12,7 @@ from typing import Iterable, Hashable, TypeVar, Optional
 import logging
 
 from atap_corpus.interfaces import Clonable, Serialisable, Container
-from atap_corpus.types import PathLike
+from atap_corpus._types import PathLike
 
 logger = logging.getLogger(__name__)
 

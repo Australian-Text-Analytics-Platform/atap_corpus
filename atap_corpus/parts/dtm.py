@@ -14,7 +14,7 @@ from sklearn.feature_extraction.text import CountVectorizer
 
 from atap_corpus.interfaces import TSerialisable
 from atap_corpus.parts.base import BaseDTM, TFreqTable
-from atap_corpus.types import Docs, Doc, PathLike
+from atap_corpus._types import Docs, Doc, PathLike
 
 """ Document Term Matrix DTM
 
