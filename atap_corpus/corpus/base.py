@@ -12,7 +12,7 @@ from typing import Iterable, Hashable, TypeVar, Optional
 import logging
 
 from atap_corpus.interfaces import Clonable, Serialisable, Container
-from atap_corpus.types import PathLike
+from atap_corpus._types import PathLike
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +51,13 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
             raise ValueError(f"{name} already exists.")
         self._name = name
 
-    def serialise(self, path: PathLike) -> PathLike:
-        return Path(path).with_suffix(".corp")
-
     def __hash__(self) -> int:
+        """ Do not override this or __eq__(). GlobalCorpora depends on this. """
         return hash(self.id.int)
+
+    def __eq__(self, other):
+        """ Do not override this or __hash__(). GlobalCorpora depends on this. """
+        return super().__eq__(other)
 
     @abstractmethod
     def __len__(self) -> int:

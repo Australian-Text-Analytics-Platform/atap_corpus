@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from typing import TypeVar, Callable
 
-from atap_corpus.interfaces import Clonable
-from atap_corpus.types import Docs, Doc
+from atap_corpus.interfaces import Clonable, Serialisable
+from atap_corpus._types import Docs, Doc
 
 
 class BaseFreqTable(metaclass=ABCMeta):
@@ -12,7 +12,7 @@ class BaseFreqTable(metaclass=ABCMeta):
 TFreqTable = TypeVar("TFreqTable", bound=BaseFreqTable)
 
 
-class BaseDTM(Clonable, metaclass=ABCMeta):
+class BaseDTM(Clonable, Serialisable, metaclass=ABCMeta):
     # todo: core interface functions need to be defined here.
     @abstractmethod
     def to_freqtable(self) -> TFreqTable:

@@ -1,5 +1,6 @@
 import logging
-from typing import Optional, Generator, Callable, Type
+import zipfile
+from typing import Optional, Generator, Type, IO
 from collections import namedtuple
 
 import numpy as np
@@ -13,7 +14,7 @@ from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus.types import PathLike, Docs, Mask, Doc
+from atap_corpus._types import PathLike, Docs, Mask, Doc
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -62,22 +63,83 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         """ Export corpus as a dataframe. """
         return self._df.copy().reset_index(drop=True)
 
-    def serialise(self, path: PathLike, metas: list[str] | bool, dtms: list[str] | bool) -> PathLike:
-        path = super().serialise(path)
+    def serialise(self, path_or_file: PathLike | IO,
+                  metas: list[str] | bool = True, dtms: list[str] | bool = True) -> PathLike:
+        file = super().serialise(path_or_file=path_or_file)
+        if not self.is_root:
+            logger.warning("You are serialising a subcorpus. When you deserialise this it'll be a root corpus.")
+
         if metas is True: metas = self.metas
-        metas: list[str]
-        if dtms is True: dtms = None  # todo: add all custom dtms.
-        dtms: list[str]
-        return path
+        cols = [self._COL_DOC]
+        cols.extend(metas)
+        if dtms is True: dtms = list(self.dtms.keys())
+
+        to_serialise_df = self._df.loc[:, cols]
+        with zipfile.ZipFile(file, 'w') as z:
+            with z.open("corpus.parquet", 'w') as zdf:
+                to_serialise_df.to_parquet(zdf, engine='pyarrow', index=False)
+
+            # python3.10 uses .writestr and >3.11 uses .mkdir
+            dtm_dir = "dtms"
+            z.writestr(f"{dtm_dir}/", '')  # works on MacOS, Linux (binder instance)
+            for dtm_key in dtms:
+                dtm: BaseDTM = self.dtms.get(dtm_key)
+                with z.open(f"{dtm_dir}/{dtm_key}.zip", 'w') as dtmz:
+                    dtm.serialise(dtmz)
+
+            z.writestr("name", self.name.encode("utf-8"))
+        file.close()
+        return path_or_file
 
     @classmethod
-    def deserialise(cls, path: PathLike) -> 'DataFrameCorpus':
-        raise NotImplementedError()
+    def deserialise(cls, path_or_file: PathLike) -> 'DataFrameCorpus':
+        file = super().deserialise(path_or_file)
 
-    def __init__(self, docs: Optional[pd.Series | list[str]] = None, name: str = None):
+        df: Optional[pd.DataFrame] = None
+        name: Optional[str] = None
+        dtms: dict[str, cls.dtm_cls()] = dict()
+        with zipfile.ZipFile(file, 'r') as z:
+            dtm_dir = "dtms"
+            files = z.namelist()
+            f: str
+            for f in files:
+                if f.endswith("/"): continue
+                if f.startswith(f"{dtm_dir}/"):
+                    name = f[f.rfind("/") + 1:f.rfind('.')]  # zipname is used as dtm name. (exclude suffix)
+                    with z.open(f, 'r') as dtm_h:
+                        dtm = cls.dtm_cls().deserialise(dtm_h)
+                        dtms[name] = dtm
+                if f == "corpus.parquet":
+                    with z.open(f, 'r') as df_h:
+                        df = pd.read_parquet(df_h)
+                if f == "name":
+                    with z.open(f, 'r') as n_h:
+                        name = str(n_h.read())
+        file.close()
+        if df is None:
+            raise FileNotFoundError("Missing corpus.parquet file in your zip.")
+        else:
+            if name is None: logger.warning("Missing corpus name from your zip.")
+            corpus = cls(docs=df, name=name)
+            corpus._ClonableDTMRegistryMixin__dtms = dtms
+            return corpus
+
+    def __init__(self, docs: Optional[pd.DataFrame | pd.Series | list[str]] = None, name: str = None):
         super().__init__(name=name)
-        if docs is None: docs = pd.Series(list())
-        self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+        if docs is None:
+            docs = pd.Series(list())
+            self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+        elif isinstance(docs, pd.Series):
+            self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+        elif isinstance(docs, pd.DataFrame):
+            if self._COL_DOC not in docs.columns:
+                raise ValueError(f"Column {self._COL_DOC} not found. You must set the col_doc argument.\n"
+                                 f"Available columns: {docs.columns}")
+            ensure_docs(docs.loc[:, self._COL_DOC])
+            self._df = docs
+        else:
+            raise ValueError(f"{docs} must be either a Series, list or DataFrame.")
+
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
             f"More than 1 {self._COL_DOC} column in dataframe."
@@ -85,8 +147,6 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         # from super - nothing is overwritten here just typehints.
         self._parent: Optional[DataFrameCorpus]
         self._mask: Optional[Mask]
-
-        self._dtms: dict[str, BaseDTM] = dict()
 
     def rename(self, name: str):
         self.name = name
@@ -174,6 +234,17 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
         return self.cloned(mask, name=name)
 
+    def equals(self, other: 'DataFrameCorpus'):
+        if not other._df.equals(self._df):
+            return False
+        if not other._ClonableDTMRegistryMixin__dtms.keys() == self._ClonableDTMRegistryMixin__dtms.keys():
+            return False
+        for dtm_key in self._ClonableDTMRegistryMixin__dtms.keys():
+            this_dtm = self._ClonableDTMRegistryMixin__dtms[dtm_key]
+            other_dtm = other._ClonableDTMRegistryMixin__dtms[dtm_key]
+            if this_dtm != other_dtm: return False
+        return True
+
     def __len__(self):
         if self.is_root:
             return len(self._df) if self._df is not None else 0
@@ -215,8 +286,8 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         return format_dunder_str(self.__class__, self.name, {"size": len(self)})
 
     # -- ClonableDTMRegistryMixin
-    @property
-    def dtm_cls(self) -> Type[BaseDTM]:
+    @classmethod
+    def dtm_cls(cls) -> Type[BaseDTM]:
         return DTM
 
     # -- SpacyDocMixin --

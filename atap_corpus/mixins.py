@@ -8,7 +8,7 @@ import spacy
 import coolname
 
 from atap_corpus.parts.base import BaseDTM
-from atap_corpus.types import Doc
+from atap_corpus._types import Doc
 from atap_corpus.interfaces import Clonable
 
 logger = logging.getLogger(__name__)
@@ -29,8 +29,8 @@ class UniqueIDProviderMixin(object):
     Cons: Won't be able to use dependency injection - although I suspect this isn't needed for this scenario.
     """
 
-    _WARNING_AT = 20
-    _ERROR_AT = 50
+    _WARNING_COLLISION_COUNT = 20
+    _ERROR_COLLISION_COUNT = 50
 
     @abstractmethod
     def is_unique_id(self, id_: uuid.UUID | str):
@@ -42,9 +42,9 @@ class UniqueIDProviderMixin(object):
             if self.is_unique_id(id_):
                 return id_
             counter += 1
-            if counter == self._WARNING_AT:
+            if counter == self._WARNING_COLLISION_COUNT:
                 logger.warning(f"Generated {counter} collided unique IDs. Issue with UUID?.")
-            if counter >= self._ERROR_AT:
+            if counter >= self._ERROR_COLLISION_COUNT:
                 logger.error(f"Generated {counter} collided unique IDs. ")
                 raise RuntimeError("Too many IDs are colliding. Issue with UUID?.")
 
@@ -117,15 +117,15 @@ class ClonableDTMRegistryMixin(object):
         # sorry, this is the only state in this Mixin i promise.
         self.__dtms: dict[str, BaseDTM] = dict()
 
-    @property
+    @classmethod
     @abstractmethod
-    def dtm_cls(self) -> Type[BaseDTM]:
+    def dtm_cls(cls) -> Type[BaseDTM]:
         """ Define which BaseDTM subclass you're using in your class with this Mixin."""
         raise NotImplementedError()
 
     @property
     def dtms(self) -> dict[str, BaseDTM]:
-        """ Returns a shallow copy of the dictionary storing the DTMs. i.e. read-only"""
+        """ Returns a shallow copy of the dictionary storing the DTMs."""
         self: Clonable | 'ClonableDTMRegistryMixin'
         if self.is_root:
             return self.__dtms.copy()
@@ -154,7 +154,7 @@ class ClonableDTMRegistryMixin(object):
             raise ValueError(f"{name} already exist. Maybe remove it?")
         if not self.is_root:
             logger.warning(f"This corpus is not root. DTM {name} will be created from root.")
-        dtm = self.dtm_cls.from_docs(root.docs(), tokeniser_func=tokeniser_func)
+        dtm = self.dtm_cls().from_docs(root.docs(), tokeniser_func=tokeniser_func)
         root.__dtms[name] = dtm
         assert name in self.dtms.keys(), f"Missing {name} from DTMs after creation. This check should always pass."
 

@@ -1,7 +1,10 @@
-from typing import Any, Hashable, Optional, TypeVar
+import io
+import os
+from typing import Any, Hashable, Optional, TypeVar, IO
 from abc import ABCMeta, abstractmethod
+from pathlib import Path
 
-from atap_corpus.types import Mask, PathLike
+from atap_corpus._types import Mask, PathLike
 
 TClonable = TypeVar("TClonable", bound='Clonable')
 TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
@@ -44,6 +47,7 @@ class Clonable(metaclass=ABCMeta):
         return parent
 
 
+# dev - not sure if we should use Protocol or ABC.
 class Container(metaclass=ABCMeta):
     """ Container abstract class
     This class provides a common interface and enforce implementations of
@@ -76,15 +80,36 @@ class Container(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
+# dev - not sure if we should use Protocol or ABC.
 class Serialisable(metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def deserialise(cls, path: PathLike) -> TSerialisable:
-        """ Deserialise configuration and return the deserialised object. """
-        raise NotImplementedError()
+    def deserialise(cls, path_or_file: PathLike | IO) -> TSerialisable:
+        """ Deserialise configuration and return the deserialised object.
+
+        This base method transform path into binary io, otherwise io is passed through.
+        """
+        if isinstance(path_or_file, str | os.PathLike):
+            file = io.BufferedReader(io.FileIO(path_or_file, mode='r'))
+        if isinstance(path_or_file, io.IOBase):
+            file = path_or_file
+            if not path_or_file.readable():
+                raise io.UnsupportedOperation(f"{path_or_file} is not readable.")
+        return file
 
     @abstractmethod
-    def serialise(self, path: PathLike, *args, **kwargs) -> PathLike:
-        """ Serialises configuration into a persistent format. """
-        raise NotImplementedError()
+    def serialise(self, path_or_file: PathLike | IO, *args, **kwargs) -> PathLike | IO:
+        """ Serialises configuration into a persistent format.
+
+        This base method transform path into binary io, otherwise io is passed through.
+        """
+        if isinstance(path_or_file, str | os.PathLike):
+            file = io.BufferedWriter(io.FileIO(path_or_file, mode='wb'))
+        elif isinstance(path_or_file, io.IOBase):
+            file = path_or_file
+            if not file.writable():
+                raise io.UnsupportedOperation(f"{path_or_file} is not writable.")
+        else:
+            raise ValueError(f"{path_or_file} must be a path or IO.")
+        return file
