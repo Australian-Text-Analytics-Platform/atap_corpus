@@ -1,9 +1,11 @@
 import contextlib
+import io
 import itertools
 import logging
 from collections import Counter
 from pathlib import Path
 from typing import Union, Iterable, Optional, Callable
+import zipfile
 
 import pandas as pd
 import numpy as np
@@ -47,21 +49,31 @@ class DTM(BaseDTM):
     """
 
     @classmethod
-    def deserialise(cls, path: PathLike) -> TSerialisable:
-        path = Path(path)
-        mtx_path = path.with_suffix(".npz")
-        trm_path = path.with_suffix(".terms")
-        matrix = load_npz(mtx_path)
-        terms = srsly.read_msgpack(trm_path)
+    def deserialise(cls, path_or_file: PathLike | io.IOBase) -> TSerialisable:
+        file = super().deserialise(path_or_file)
+
+        with zipfile.ZipFile(file, mode='r') as z:
+            mtx_path = Path("matrix").with_suffix(".npz")
+            trm_path = Path("terms").with_suffix(".mpk")
+            with z.open(mtx_path.__str__(), 'r') as mh:
+                matrix = load_npz(mh)
+            with z.open(trm_path.__str__(), 'r') as th:
+                terms = srsly.msgpack_loads(th.read())
+        file.close()
         return cls.from_matrix(matrix, terms)
 
-    def serialise(self, path: PathLike, *args, **kwargs) -> PathLike:
-        path = Path(path)
-        mtx_path = path.with_suffix(".npz")
-        trm_path = path.with_suffix(".terms")
-        save_npz(mtx_path, self.matrix)
-        srsly.write_msgpack(trm_path, self.terms)
-        return path
+    def serialise(self, path_or_file: PathLike | io.IOBase, *args, **kwargs) -> PathLike:
+        file = super().serialise(path_or_file)
+
+        with zipfile.ZipFile(file, mode='w') as z:
+            mtx_path = Path("matrix").with_suffix(".npz")
+            trm_path = Path("terms").with_suffix(".mpk")
+            with z.open(mtx_path.__str__(), 'w') as mh:
+                save_npz(mh, self.matrix)
+            with z.open(trm_path.__str__(), 'w') as th:
+                th.write(srsly.msgpack_dumps(self.terms))
+        file.close()
+        return path_or_file
 
     @classmethod
     def from_docs_with_vectoriser(cls, docs: Docs | Iterable[Doc],
@@ -122,13 +134,13 @@ class DTM(BaseDTM):
 
         dev - use this function when initialising a root DTM. e.g. in from_* class methods.
         """
-        self._matrix = matrix
-        self._terms = terms
+        self._matrix: csr_matrix = matrix
+        self._terms: np.ndarray[str] = terms
         self._term_idx_map: dict[str, int] = {self._terms[idx]: idx for idx in range(len(self._terms))}
         return self
 
     @property
-    def matrix(self):
+    def matrix(self) -> csr_matrix:
         matrix = self.find_root()._matrix
         if self._row_indices is not None:
             matrix = matrix[self._row_indices, :]
@@ -243,7 +255,15 @@ class DTM(BaseDTM):
     def __str__(self):
         return self.__repr__()
 
-    # -- allow for context manager - i.e. 'with' syntax.
+    def __eq__(self, other: 'DTM') -> bool:
+        return (other.matrix.shape == self.matrix.shape and
+                self._terms_aligned(other) and
+                other.matrix.dtype == self.matrix.dtype and
+                other.matrix.nnz == self.matrix.nnz and  # number of non-zero values (i.e. stored values)
+                (other.matrix == self.matrix).sum() == np.prod(self.matrix.shape))  # checks if all true - exp
+
+    # -- allow for context manager to remove terms temporarily.
+    # possible use case: when we want to temporarily remove stopwords from the DTM for downstream analysis.
 
     @contextlib.contextmanager
     def without_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
@@ -338,6 +358,5 @@ class DTM(BaseDTM):
 
     def _terms_aligned(self, other: 'DTM') -> bool:
         """ Check if the other DTM's terms are index aligned with current DTM """
-        this, other = self.terms, other.terms
-        if not len(this) == len(other): return False
-        return (this == other).all()
+        if not len(self.terms) == len(other.terms): return False
+        return self.terms == other.terms
