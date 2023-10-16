@@ -52,7 +52,12 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
         self._name = name
 
     def __hash__(self) -> int:
+        """ Do not override this or __eq__(). GlobalCorpora depends on this. """
         return hash(self.id.int)
+
+    def __eq__(self, other):
+        """ Do not override this or __hash__(). GlobalCorpora depends on this. """
+        return super().__eq__(other)
 
     @abstractmethod
     def __len__(self) -> int:
