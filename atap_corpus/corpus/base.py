@@ -51,9 +51,6 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
             raise ValueError(f"{name} already exists.")
         self._name = name
 
-    def serialise(self, path: PathLike) -> PathLike:
-        return Path(path).with_suffix(".corp")
-
     def __hash__(self) -> int:
         return hash(self.id.int)
 
