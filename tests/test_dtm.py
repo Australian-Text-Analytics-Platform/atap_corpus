@@ -91,7 +91,7 @@ class TestDTM(TestCase):
     def test_given_dtm_when_serialise_then_deserialise_rebuilds_equivalent_dtm(self):
         path = Path(tempfile.mktemp(suffix=".zip"))
         self.root.serialise(path_or_file=path)
-        self.assertTrue(path.is_file(), "Failed to serialise dtm to file.")
+        self.assertTrue(path.is_file(), "Did not serialise dtm to file.")
         deserialised = DTM.deserialise(path)
         self.assertEqual(self.root, deserialised)
         os.remove(path)
