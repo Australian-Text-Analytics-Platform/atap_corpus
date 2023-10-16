@@ -65,6 +65,17 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
 
     def serialise(self, path_or_file: PathLike | IO,
                   metas: list[str] | bool = True, dtms: list[str] | bool = True) -> PathLike:
+        """ Serialises the Corpus as a zip.
+        If you've supplied an IO, it'll be closed.
+
+        :param path_or_file: path or io.
+        :param metas: serialise all metadata or provided list.
+        :param dtms: serialise all dtms or provided list.
+        :return: serialised path or IO (closed).
+        """
+        # dev - probably not a good idea to close the IO if it is one.
+        # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
+
         file = super().serialise(path_or_file=path_or_file)
         if not self.is_root:
             logger.warning("You are serialising a subcorpus. When you deserialise this it'll be a root corpus.")
@@ -92,7 +103,15 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         return path_or_file
 
     @classmethod
-    def deserialise(cls, path_or_file: PathLike) -> 'DataFrameCorpus':
+    def deserialise(cls, path_or_file: PathLike | IO) -> 'DataFrameCorpus':
+        """ Deserialises your path or IO into a DataFrameCorpus.
+        If you've supplied an IO, it'll be closed.
+        :param path_or_file: path or io.
+        :return: DataFrameCorpus.
+        """
+        # dev - probably not a good idea to close the IO if it is one.
+        # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
+
         file = super().deserialise(path_or_file)
 
         df: Optional[pd.DataFrame] = None

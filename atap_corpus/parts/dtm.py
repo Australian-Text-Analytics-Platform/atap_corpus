@@ -50,6 +50,13 @@ class DTM(BaseDTM):
 
     @classmethod
     def deserialise(cls, path_or_file: PathLike | io.IOBase) -> TSerialisable:
+        """ Deserialise your path or IO into a DTM.
+        If you've supplied an IO, it'll be closed.
+        :param path_or_file: path or io.
+        :return: DTM
+        """
+        # dev - probably not a good idea to close the IO if it is one.
+        # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
         file = super().deserialise(path_or_file)
 
         with zipfile.ZipFile(file, mode='r') as z:
@@ -62,7 +69,15 @@ class DTM(BaseDTM):
         file.close()
         return cls.from_matrix(matrix, terms)
 
-    def serialise(self, path_or_file: PathLike | io.IOBase, *args, **kwargs) -> PathLike:
+    def serialise(self, path_or_file: PathLike | io.IOBase) -> PathLike:
+        """ Serialises the DTM as a zip.
+        If you've supplied an IO, it'll be closed.
+
+        :param path_or_file:
+        :return: serialised path or IO (closd).
+        """
+        # dev - probably not a good idea to close the IO if it is one.
+        # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
         file = super().serialise(path_or_file)
 
         with zipfile.ZipFile(file, mode='w') as z:
