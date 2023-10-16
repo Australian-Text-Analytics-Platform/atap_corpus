@@ -117,9 +117,9 @@ class ClonableDTMRegistryMixin(object):
         # sorry, this is the only state in this Mixin i promise.
         self.__dtms: dict[str, BaseDTM] = dict()
 
-    @property
+    @classmethod
     @abstractmethod
-    def dtm_cls(self) -> Type[BaseDTM]:
+    def dtm_cls(cls) -> Type[BaseDTM]:
         """ Define which BaseDTM subclass you're using in your class with this Mixin."""
         raise NotImplementedError()
 
@@ -154,7 +154,7 @@ class ClonableDTMRegistryMixin(object):
             raise ValueError(f"{name} already exist. Maybe remove it?")
         if not self.is_root:
             logger.warning(f"This corpus is not root. DTM {name} will be created from root.")
-        dtm = self.dtm_cls.from_docs(root.docs(), tokeniser_func=tokeniser_func)
+        dtm = self.dtm_cls().from_docs(root.docs(), tokeniser_func=tokeniser_func)
         root.__dtms[name] = dtm
         assert name in self.dtms.keys(), f"Missing {name} from DTMs after creation. This check should always pass."
 
