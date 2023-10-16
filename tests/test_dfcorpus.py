@@ -9,6 +9,9 @@ Namely, these are:
 + clone behaviours - clone, parent, root, detached      (also for meta and dtms)
 """
 import logging.config
+import os
+import tempfile
+from pathlib import Path
 from unittest import TestCase
 
 import numpy as np
@@ -169,3 +172,21 @@ class TestDataFrameCorpus(TestCase):
         child = parent.cloned(test_child_mask)
         self.assertEqual(child.dtms['tokens'].shape[0], len(child),
                          "Mismatched child DTM number of docs and child corpus")
+
+    # -- serialisation
+    def test_given_dfcorpus_without_dtm_and_serialised_then_deserialised_rebuilds_equivalent_dfcorpus(self):
+        path = Path(tempfile.mktemp(suffix=".zip"))
+        self.root.serialise(path_or_file=path)
+        self.assertTrue(path.is_file(), "Did not serialise corpus to file.")
+        deserialised = DataFrameCorpus.deserialise(path)
+        self.assertTrue(self.root.equals(deserialised))
+        os.remove(path)
+
+    def test_given_dfcorpus_with_dtm_and_serialised_then_deserialised_rebuilds_equivalent_dfcorpus(self):
+        path = Path(tempfile.mktemp(suffix=".zip"))
+        self.root.add_dtm(tokeniser_func=self.tokeniser_func, name='tokens')
+        self.root.serialise(path_or_file=path)
+        self.assertTrue(path.is_file(), "Did not serialise corpus to file.")
+        deserialised = DataFrameCorpus.deserialise(path)
+        os.remove(path)
+        self.assertTrue(self.root.equals(deserialised))
