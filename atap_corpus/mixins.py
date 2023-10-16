@@ -29,8 +29,8 @@ class UniqueIDProviderMixin(object):
     Cons: Won't be able to use dependency injection - although I suspect this isn't needed for this scenario.
     """
 
-    _WARNING_AT = 20
-    _ERROR_AT = 50
+    _WARNING_COLLISION_COUNT = 20
+    _ERROR_COLLISION_COUNT = 50
 
     @abstractmethod
     def is_unique_id(self, id_: uuid.UUID | str):
@@ -42,9 +42,9 @@ class UniqueIDProviderMixin(object):
             if self.is_unique_id(id_):
                 return id_
             counter += 1
-            if counter == self._WARNING_AT:
+            if counter == self._WARNING_COLLISION_COUNT:
                 logger.warning(f"Generated {counter} collided unique IDs. Issue with UUID?.")
-            if counter >= self._ERROR_AT:
+            if counter >= self._ERROR_COLLISION_COUNT:
                 logger.error(f"Generated {counter} collided unique IDs. ")
                 raise RuntimeError("Too many IDs are colliding. Issue with UUID?.")
 
