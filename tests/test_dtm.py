@@ -7,10 +7,11 @@ This test suite ensures core behaviours of the DTM class is behaving correctly.
 Namely, these are:
 + clone behaviours - clone, root, detached
 """
-
+import os
+from pathlib import Path
 from unittest import TestCase
 import pandas as pd
-import numpy as np
+import tempfile
 
 from atap_corpus.parts.dtm import DTM
 
@@ -85,3 +86,12 @@ class TestDTM(TestCase):
                         f"Expecting parent as {id(parent)}. Got {id(child.parent)}")
         self.assertTrue(child.find_root() is self.root,
                         f"Expecting root is {id(self.root)}. Got {id(child.find_root())}")
+
+    # -- serialisation
+    def test_given_dtm_when_serialise_then_deserialise_rebuilds_equivalent_dtm(self):
+        path = Path(tempfile.mktemp(suffix=".zip"))
+        self.root.serialise(path_or_file=path)
+        self.assertTrue(path.is_file(), "Failed to serialise dtm to file.")
+        deserialised = DTM.deserialise(path)
+        self.assertEqual(self.root, deserialised)
+        os.remove(path)
