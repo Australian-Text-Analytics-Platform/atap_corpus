@@ -125,7 +125,7 @@ class ClonableDTMRegistryMixin(object):
 
     @property
     def dtms(self) -> dict[str, BaseDTM]:
-        """ Returns a shallow copy of the dictionary storing the DTMs. i.e. read-only"""
+        """ Returns a shallow copy of the dictionary storing the DTMs."""
         self: Clonable | 'ClonableDTMRegistryMixin'
         if self.is_root:
             return self.__dtms.copy()
