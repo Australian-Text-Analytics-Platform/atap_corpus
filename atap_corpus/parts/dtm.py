@@ -260,7 +260,7 @@ class DTM(BaseDTM):
                 self._terms_aligned(other) and
                 other.matrix.dtype == self.matrix.dtype and
                 other.matrix.nnz == self.matrix.nnz and  # number of non-zero values (i.e. stored values)
-                (other.matrix == self.matrix).sum() == np.prod(self.matrix.shape))  # checks if all true - exp
+                not (other.matrix != self.matrix).sum() == np.prod(self.matrix.shape))  # reversed logic != is faster.
 
     # -- allow for context manager to remove terms temporarily.
     # possible use case: when we want to temporarily remove stopwords from the DTM for downstream analysis.
