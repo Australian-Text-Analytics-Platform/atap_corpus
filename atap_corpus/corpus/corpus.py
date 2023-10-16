@@ -146,7 +146,9 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
     def __init__(self, docs: Optional[pd.DataFrame | pd.Series | list[str]] = None, name: str = None):
         super().__init__(name=name)
         if docs is None:
-            docs = pd.Series(list())
+            docs = list()
+        if isinstance(docs, list):
+            docs = pd.Series(docs)
             self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
         elif isinstance(docs, pd.Series):
             self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
@@ -253,7 +255,10 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
         return self.cloned(mask, name=name)
 
-    def equals(self, other: 'DataFrameCorpus'):
+    def equals(self, other: 'DataFrameCorpus') -> bool:
+        """ Checks if the other DataFrameCorpus is equivalent to this.
+        The dataframe and all dtms are compared and must be exactly equal.
+        """
         if not other._df.equals(self._df):
             return False
         if not other._ClonableDTMRegistryMixin__dtms.keys() == self._ClonableDTMRegistryMixin__dtms.keys():
