@@ -51,10 +51,9 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
     behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
 
-    _COL_DOC: str = 'document_'
-
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'DataFrameCorpus':
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: Optional[str] = None, name: str = None) -> 'DataFrameCorpus':
+        if col_doc is None: col_doc = cls._COL_DOC
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")

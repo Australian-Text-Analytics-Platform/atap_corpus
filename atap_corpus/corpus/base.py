@@ -26,6 +26,8 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
     All Corpus types should inherit from this class.
     """
 
+    _COL_DOC: str = 'document_'
+
     def __init__(self, name: Optional[str] = None):
         super().__init__()
         from atap_corpus.registry import _Global_Corpora
