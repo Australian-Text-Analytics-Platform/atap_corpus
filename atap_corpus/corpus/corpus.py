@@ -240,7 +240,8 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
 
         :arg meta - your metadata collection. Can be a series, list or tuple.
         :arg name - provide a name for the metadata. (It can only be None if meta is a series)
-        :raises ValueError - if metadata collection size mismatches with corpus.
+        :raises ValueError - if name is invalid.
+        :raises ValueError - if metadata size is mismatched.
 
         If metadata is added to a clone, it'll populate the root and have NaN values for
         the documents that are not in the clone.
@@ -253,6 +254,8 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             raise TypeError("Meta must either be pd.Series, list or tuple.")
         if isinstance(meta, list | tuple):
             meta = pd.Series(meta)
+        if len(meta) != len(self):
+            raise ValueError(f"Metadata collection size did not match. Expecting {len(self)}. Got {len(meta)}.")
         meta: pd.Series
         meta = meta.reindex(self._root_df_with_masked_applied().index)
         if name is None: name = meta.name
