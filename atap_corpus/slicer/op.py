@@ -3,7 +3,7 @@
 A behaviour class that encompasses the slicing operation.
 """
 import re
-from typing import Union, IO
+from typing import Union, IO, Callable
 from abc import abstractmethod
 
 import pandas as pd
@@ -19,7 +19,7 @@ import colorlog
 
 logger = colorlog.getLogger(__name__)
 
-__all__ = ["ItemOp", "RangeOp", "RegexOp", "DatetimeOp", "MatcherOp"]
+__all__ = ["CallableOp", "ItemOp", "RangeOp", "RegexOp", "DatetimeOp", "MatcherOp"]
 
 
 class BaseOperation(Serialisable):
@@ -33,7 +33,7 @@ class BaseOperation(Serialisable):
         file = super().serialise(path_or_file)
         raise NotImplementedError()
 
-    def __init__(self, filterable: Filterable):
+    def __init__(self, filterable: Filterable, *args, **kwargs):
         if not isinstance(filterable, Filterable):
             raise TypeError(f"{filterable} is not a {Filterable.__class__.__name__}.")
         self._filterable = filterable
@@ -56,8 +56,18 @@ class BaseOperation(Serialisable):
         return f"<{self.__class__.__name__}>"
 
 
+class CallableOp(BaseOperation):
+
+    def __init__(self, filterable: Filterable, fn: Callable):
+        super().__init__(filterable)
+        self._fn = fn
+
+    def condition_func(self, any_) -> bool:
+        return self._callable(any_)
+
+
 class ItemOp(BaseOperation):
-    def __init__(self, filterable: Filterable, items):
+    def __init__(self, filterable: Filterable, items: str | list | tuple | set):
         super().__init__(filterable)
         items = [items] if isinstance(items, str) else items
         items = [items] if not type(items) in (list, tuple, set) else items

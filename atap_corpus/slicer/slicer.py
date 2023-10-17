@@ -27,8 +27,8 @@ class DataFrameCorpusSlicer(object):
         :arg cond_func -  Callable that returns a boolean.
         """
         meta = self._corpus().get_meta(name)
-        mask = self._mask_by_condition(meta, cond_func)
-        return self._corpus().cloned(mask)
+        op = CallableOp(meta, cond_func)
+        return self._corpus().cloned(op.mask())
 
     def filter_by_item(self, name: str, items):
         """ Filter by item - items can be str or numeric types.
@@ -56,7 +56,7 @@ class DataFrameCorpusSlicer(object):
         :arg regex - the regex pattern
         :arg ignore_case - whether to ignore case
         """
-        if name == self._corpus().COL_DOC:
+        if name == self._corpus()._COL_DOC:
             meta = self._corpus().docs()
         else:
             meta = self._corpus().get_meta(name)
