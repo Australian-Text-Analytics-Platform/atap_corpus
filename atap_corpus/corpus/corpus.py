@@ -219,7 +219,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
     @property
     def metas(self) -> list[str]:
         """ Returns a list of strings representing the metadata in the Corpus. """
-        cols = list(self._df.columns)
+        cols = list(self.find_root()._df.columns)
         cols.remove(self._COL_DOC)
         return cols
 
