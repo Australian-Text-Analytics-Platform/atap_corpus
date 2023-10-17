@@ -241,6 +241,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             raise TypeError("Meta must either be pd.Series, list or tuple.")
         if isinstance(meta, list | tuple):
             meta = pd.Series(meta)
+        meta: pd.Series
         meta = meta.reindex(self._df.index)
         if name is None: name = meta.name
         if name == self._COL_DOC:
