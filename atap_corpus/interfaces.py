@@ -1,13 +1,9 @@
 import io
 import os
-from typing import Any, Hashable, Optional, TypeVar, IO
+from typing import Any, Hashable, Optional, IO
 from abc import ABCMeta, abstractmethod
-from pathlib import Path
 
-from atap_corpus._types import Mask, PathLike
-
-TClonable = TypeVar("TClonable", bound='Clonable')
-TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
+from atap_corpus._types import Mask, PathLike, TClonable, TSerialisable
 
 
 class Clonable(metaclass=ABCMeta):

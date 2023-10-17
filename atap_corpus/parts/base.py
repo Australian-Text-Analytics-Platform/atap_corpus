@@ -1,15 +1,12 @@
 from abc import ABCMeta, abstractmethod
-from typing import TypeVar, Callable
+from typing import Callable
 
 from atap_corpus.interfaces import Clonable, Serialisable
-from atap_corpus._types import Docs, Doc
+from atap_corpus._types import Docs, Doc, TFreqTable
 
 
 class BaseFreqTable(metaclass=ABCMeta):
     pass
-
-
-TFreqTable = TypeVar("TFreqTable", bound=BaseFreqTable)
 
 
 class BaseDTM(Clonable, Serialisable, metaclass=ABCMeta):

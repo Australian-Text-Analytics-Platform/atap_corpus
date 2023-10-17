@@ -7,12 +7,11 @@ Must support:
 """
 import uuid
 from abc import ABCMeta, abstractmethod
-from pathlib import Path
-from typing import Iterable, Hashable, TypeVar, Optional
+from typing import Iterable, Hashable, Optional
 import logging
 
 from atap_corpus.interfaces import Clonable, Serialisable, Container
-from atap_corpus._types import PathLike
+from atap_corpus._types import TCorpus
 
 logger = logging.getLogger(__name__)
 
@@ -65,9 +64,6 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-TBaseCorpus = TypeVar("TBaseCorpus", bound=BaseCorpus)
-
-
 class BaseCorpora(Container, metaclass=ABCMeta):
     """ Base Corpora
 
@@ -77,7 +73,7 @@ class BaseCorpora(Container, metaclass=ABCMeta):
     It also changes the argument names for the relevant inherited Container functions.
     """
 
-    def __init__(self, corpus: Optional[TBaseCorpus | Iterable[TBaseCorpus]] = None):
+    def __init__(self, corpus: Optional[TCorpus | Iterable[TCorpus]] = None):
         if corpus is not None:
             corpus = list(corpus)
             for c in corpus:
@@ -85,7 +81,7 @@ class BaseCorpora(Container, metaclass=ABCMeta):
                     raise TypeError(f"Corpora can only store Corpus objects. Got {c.__class__.__name__}.")
 
     @abstractmethod
-    def add(self, corpus: TBaseCorpus):
+    def add(self, corpus: TCorpus):
         """ Adds a corpus to the corpora.
         :arg corpus - a subclass of BaseCorpus. (renamed from 'obj' in Container abc)
         """
@@ -99,9 +95,6 @@ class BaseCorpora(Container, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get(self, name: Hashable) -> Optional[TBaseCorpus]:
+    def get(self, name: Hashable) -> Optional[TCorpus]:
         """ Returns the Corpus object from the Corpora. """
         pass
-
-
-TBaseCorpora = TypeVar("TBaseCorpora", bound=BaseCorpus)
