@@ -104,3 +104,36 @@ class BaseCorpora(Container, metaclass=ABCMeta):
     def get(self, name: Hashable) -> Optional[TCorpus]:
         """ Returns the Corpus object from the Corpora. """
         pass
+
+
+# dev - this is a strict class hierarchy because it's very much implementation dependent.
+#   e.g. for DataFrameCorpus, it'll require reference to the dataframe which is a third party and how to
+#       add metadata to it is very much their API specific.
+class BaseCorpusWithMeta(BaseCorpus, metaclass=ABCMeta):
+    """ BaseCorpus that also holds metadata. """
+
+    @abstractmethod
+    def metas(self) -> list[str]:
+        """ Return a list of names for the metadata collections in the corpus. """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def add_meta(self, meta: list | tuple, name: str):
+        """ Adds a metadata collection in the Corpus with name. """
+        if len(meta) != len(self):
+            raise ValueError(
+                f"Added meta {meta} does not align with Corpus size. Expecting {len(self)} Got {len(meta)}"
+            )
+        ...
+
+    @abstractmethod
+    def remove_meta(self, name: str):
+        """ Remove a metadata collection from the Corpus with name. """
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_meta(self, name: str):
+        """ Get the metadata collection for this Corpus with name. """
+        if name == self._COL_DOC:
+            raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
+        ...

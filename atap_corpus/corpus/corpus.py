@@ -10,11 +10,11 @@ import spacy
 import spacy.tokens
 from tqdm.auto import tqdm
 
-from atap_corpus.corpus.base import BaseCorpus
+from atap_corpus.corpus.base import BaseCorpusWithMeta
 from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
-from atap_corpus.slicer.slicer import DataFrameCorpusSlicer
+from atap_corpus.slicer.slicer import CorpusSlicer
 from atap_corpus.registry import _Unique_Name_Provider
 from atap_corpus._types import PathLike, Docs, Mask
 from atap_corpus.utils import format_dunder_str
@@ -30,7 +30,7 @@ def ensure_docs(docs: pd.Series) -> Docs:
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
 
-class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
+class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMeta):
     """ Corpus
     This class abstractly represents a corpus which is a collection of documents.
     Each document is also described by their metadata and is used for functions such as slicing.
@@ -170,7 +170,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         self._parent: Optional[DataFrameCorpus]
         self._mask: Optional[Mask]
 
-        self._slicer = DataFrameCorpusSlicer(wref.ref(self))
+        self._slicer = CorpusSlicer(wref.ref(self))
 
     def rename(self, name: str):
         self.name = name
@@ -207,12 +207,12 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
     @property
-    def slicer(self) -> DataFrameCorpusSlicer:
+    def slicer(self) -> CorpusSlicer:
         """ Returns the slicer for this corpus. """
         return self._slicer
 
     @property
-    def s(self) -> DataFrameCorpusSlicer:
+    def s(self) -> CorpusSlicer:
         """ Shorthand for slicer. """
         return self.slicer
 
@@ -233,10 +233,6 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         """ Adds a meta series into the Corpus. Realigns index with Corpus.
         If mismatched size: raises ValueError.
         """
-        if len(meta) != len(self):
-            raise ValueError(
-                f"Added meta {meta} does not align with Corpus size. Expecting {len(self)} Got {len(meta)}"
-            )
         if not isinstance(meta, pd.Series | list | tuple):
             raise TypeError("Meta must either be pd.Series, list or tuple.")
         if isinstance(meta, list | tuple):

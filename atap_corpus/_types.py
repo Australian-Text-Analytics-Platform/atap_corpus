@@ -13,5 +13,6 @@ PathLike: TypeAlias = str | os.PathLike[str]
 TClonable = TypeVar("TClonable", bound='Clonable')
 TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
 TCorpus = TypeVar("TCorpus", bound='BaseCorpus')
+TCorpusWithMeta = TypeVar("TCorpusWithMeta", bound="BaseCorpusWithMeta")
 TCorpora = TypeVar("TCorpora", bound='BaseCorpora')
 TFreqTable = TypeVar("TFreqTable", bound='BaseFreqTable')

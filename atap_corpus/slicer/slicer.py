@@ -4,22 +4,23 @@ from typing import Union, Callable, Optional, Any, Iterator
 
 import pandas as pd
 
+from atap_corpus._types import TCorpusWithMeta
 from atap_corpus.slicer.op import *
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DataFrameCorpusSlicer"]
+__all__ = ["CorpusSlicer"]
 
 
 # dev - current only supports dataframe corpus slicing - most of the code is re-usable but just not organised yet.
-class DataFrameCorpusSlicer(object):
+class CorpusSlicer(object):
     """ 'DataFrameCorpus'Slicer
 
     The Corpus slicer is used to slice the dataframe corpus.
     """
 
-    def __init__(self, corpus: wref.ReferenceType['DataFrameCorpus']):
-        self._corpus: wref.ReferenceType['DataFrameCorpus'] = corpus
+    def __init__(self, corpus: wref.ReferenceType[TCorpusWithMeta]):
+        self._corpus: wref.ReferenceType[TCorpusWithMeta] = corpus
 
     def filter_by_condition(self, name: str, cond_func: Callable[[Any], bool]):
         """ Filter by condition
@@ -78,7 +79,7 @@ class DataFrameCorpusSlicer(object):
         op = DatetimeOp(meta, start, end, strftime)
         return self._corpus().cloned(op.mask())
 
-    def group_by(self, name: str, grouper: pd.Grouper = None) -> Iterator[tuple[str, 'DataFrameCorpus']]:
+    def group_by(self, name: str, grouper: pd.Grouper = None) -> Iterator[tuple[str, TCorpusWithMeta]]:
         """ Return groups of the subcorpus based on their metadata.
 
         :arg name: str - meta name
@@ -87,11 +88,3 @@ class DataFrameCorpusSlicer(object):
         """
         meta = self._corpus().get_meta(name)
         return ((gid, self._corpus().cloned(mask)) for gid, mask in meta.groupby(grouper=grouper))
-
-    def _mask_by_condition(self, meta, cond_func):
-        mask = meta.apply(cond_func)
-        try:
-            mask = mask.astype('boolean')
-        except TypeError:
-            raise TypeError("Does your condition function return booleans?")
-        return mask
