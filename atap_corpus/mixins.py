@@ -1,3 +1,12 @@
+""" mixins.py
+
+Provides the following Mixins:
++ UniqueIDProviderMixin - generates unique id with UUIDs, inheritter must override is_unique_id.
++ UniqueNameProviderMixin - generates unique names with coolname, inheritter must override is_unique_name.
++ SpacyDocMixin - for inheritting in the Corpus hierarchy to have spacy behaviours.
++ ClonableDTMRegistryMixin - for inheritting in the Corpus hierarchy to handle dtm cloning behaviours.
+"""
+
 import uuid
 from abc import abstractmethod
 from typing import Optional, Callable, Type
@@ -47,6 +56,44 @@ class UniqueIDProviderMixin(object):
             if counter >= self._ERROR_COLLISION_COUNT:
                 logger.error(f"Generated {counter} collided unique IDs. ")
                 raise RuntimeError("Too many IDs are colliding. Issue with UUID?.")
+
+
+class UniqueNameProviderMixin(object):
+    """ Provides unique name generator functions as a Mixin. """
+
+    _NAME_LEN = 2
+    _MAX_COMBINATIONS = coolname.get_combinations_count(_NAME_LEN)
+    _CURRENT_COUNT = 0
+
+    @abstractmethod
+    def is_unique_name(self, name: str) -> bool:
+        raise NotImplementedError()
+
+    def unique_name(self) -> str:
+        """ Returns a randomly generated unique name. """
+        while name := coolname.generate_slug(self._NAME_LEN):
+            if self._CURRENT_COUNT >= self._MAX_COMBINATIONS:
+                logger.debug(f"exhausted names from the coolname package with maximum={self._MAX_COMBINATIONS}.")
+                # dev - this will probably never happen (len=2, combinations=320289), if it does then increase _NAME_LEN
+                break
+            if not self.is_unique_name(name):
+                self._CURRENT_COUNT += 1
+            else:
+                return name
+        raise RuntimeError("all unique names exhausted.")
+
+    def unique_name_number_suffixed(self, name: str) -> str:
+        """ Returns a unique name based on provided name by suffixing with a number that is infinitely incremented
+        :param name: the name you want to retain.
+        :return: a unique name suffixed with a number if the name you want to retain won't be unique.
+        :raises MemoryError - very minimal possibility.
+        Note: python supports infinite integers as long as you have enough memory. Until it raises MemoryError.
+        """
+        suffix = 0
+        while name := name + str(suffix):
+            if self.is_unique_name(name):
+                return name
+            suffix += 1
 
 
 class SpacyDocsMixin(object):
@@ -165,46 +212,3 @@ class ClonableDTMRegistryMixin(object):
             del root.__dtms[name]
         except KeyError:
             raise KeyError(f"DTM with name: {name} not found.")
-
-
-#  UniqueNameProviderMixin is unused and kept for possible future uses only. Replaced by UniqueIDProviderMixin.
-#  It was initially used for GlobalCorpora where the uniqueness property is exhibited by the Corpus names.
-# dev - UniqueNameProvider & UniqueIDProvider may inherit from the same parent if it seems code should be reused.
-#  although it could make the function names unclear.
-#  some overlapping abstract behaviours are kept for these reasons.
-class UniqueNameProviderMixin(object):
-    """ Provides unique name generator functions as a Mixin. """
-
-    _NAME_LEN = 2
-    _MAX_COMBINATIONS = coolname.get_combinations_count(_NAME_LEN)
-    _CURRENT_COUNT = 0
-
-    @abstractmethod
-    def is_unique_name(self, name: str) -> bool:
-        raise NotImplementedError()
-
-    def unique_name(self) -> str:
-        """ Returns a randomly generated unique name. """
-        while name := coolname.generate_slug(self._NAME_LEN):
-            if self._CURRENT_COUNT >= self._MAX_COMBINATIONS:
-                logger.debug(f"exhausted names from the coolname package with maximum={self._MAX_COMBINATIONS}.")
-                # dev - this will probably never happen (len=2, combinations=320289), if it does then increase _NAME_LEN
-                break
-            if not self.is_unique_name(name):
-                self._CURRENT_COUNT += 1
-            else:
-                return name
-        raise RuntimeError("all unique names exhausted.")
-
-    def unique_name_number_suffixed(self, name: str) -> str:
-        """ Returns a unique name based on provided name by suffixing with a number that is infinitely incremented
-        :param name: the name you want to retain.
-        :return: a unique name suffixed with a number if the name you want to retain won't be unique.
-        :raises MemoryError - very minimal possibility.
-        Note: python supports infinite integers as long as you have enough memory. Until it raises MemoryError.
-        """
-        suffix = 0
-        while name := name + str(suffix):
-            if self.is_unique_name(name):
-                return name
-            suffix += 1
