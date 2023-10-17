@@ -62,7 +62,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
 
     def to_dataframe(self):
         """ Export corpus as a dataframe. """
-        return self._masked_root_df().copy().reset_index(drop=True)
+        return self._root_df_with_masked_applied().copy().reset_index(drop=True)
 
     def serialise(self, path_or_file: PathLike | IO,
                   metas: list[str] | bool = True, dtms: list[str] | bool = True) -> PathLike:
@@ -86,7 +86,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         cols.extend(metas)
         if dtms is True: dtms = list(self.dtms.keys())
 
-        to_serialise_df = self._masked_root_df().loc[:, cols]
+        to_serialise_df = self._root_df_with_masked_applied().loc[:, cols]
         with zipfile.ZipFile(file, 'w') as z:
             with z.open("corpus.parquet", 'w') as zdf:
                 to_serialise_df.to_parquet(zdf, engine='pyarrow', index=False)
@@ -198,19 +198,19 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
 
     def detached(self) -> 'DataFrameCorpus':
         """ Detaches from corpus tree and returns a new Corpus instance as root. """
-        df = self._masked_root_df().copy().reset_index(drop=True)
+        df = self._root_df_with_masked_applied().copy().reset_index(drop=True)
         name = f"{self.name}-detached"
         name = _Unique_Name_Provider.unique_name_number_suffixed(name=name)
         detached = self.__class__(df[self._COL_DOC], name=name)
         return detached
 
-    def _masked_root_df(self) -> pd.DataFrame:
+    def _root_df_with_masked_applied(self) -> pd.DataFrame:
         """ Return a 'copy' of the root dataframe with current mask applied. """
         return self._df if self.is_root else self.find_root()._df.loc[self._mask, :]
 
     def docs(self) -> Docs:
         """ Return the collection of docs. """
-        return self._masked_root_df().loc[:, self._COL_DOC]
+        return self._root_df_with_masked_applied().loc[:, self._COL_DOC]
 
     @property
     def slicer(self) -> CorpusSlicer:
@@ -233,7 +233,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         """ Get a shallow copy of the metadata collection based on its name. """
         if name == self._COL_DOC:
             raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
-        return self._masked_root_df().loc[:, name].copy()
+        return self._root_df_with_masked_applied().loc[:, name].copy()
 
     def add_meta(self, meta: pd.Series | list | tuple, name: Optional[str] = None):
         """ Adds a meta series into the Corpus. Realigns index with Corpus.
@@ -254,7 +254,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         if isinstance(meta, list | tuple):
             meta = pd.Series(meta)
         meta: pd.Series
-        meta = meta.reindex(self._masked_root_df().index)
+        meta = meta.reindex(self._root_df_with_masked_applied().index)
         if name is None: name = meta.name
         if name == self._COL_DOC:
             raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
@@ -280,7 +280,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
 
     def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """
-        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._masked_root_df().index)
+        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._root_df_with_masked_applied().index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
         return self.cloned(mask, name=name)
@@ -291,7 +291,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         Does not have to have the same Corpus name.
         Does not have to have the same Corpus lineage.
         """
-        if not other._masked_root_df().equals(self._masked_root_df()):
+        if not other._root_df_with_masked_applied().equals(self._root_df_with_masked_applied()):
             return False
         if not other._ClonableDTMRegistryMixin__dtms.keys() == self._ClonableDTMRegistryMixin__dtms.keys():
             return False
@@ -308,7 +308,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             return sum(self._mask)
 
     def __iter__(self):
-        col_text_idx = self._masked_root_df().columns.get_loc(self._COL_DOC)
+        col_text_idx = self._root_df_with_masked_applied().columns.get_loc(self._COL_DOC)
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
@@ -333,7 +333,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             start = item.start
             stop = item.stop
             if start is None: start = 0
-            if stop is None: stop = len(self._masked_root_df())
+            if stop is None: stop = len(self._root_df_with_masked_applied())
             return self.docs().iloc[start:stop]
         else:
             raise NotImplementedError("Only supports int and slice.")
