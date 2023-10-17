@@ -29,6 +29,17 @@ class MockDataFrameCorpus(DataFrameCorpus):
         super().__init__(docs, name=name)  # generates unique name.
 
 
+def compare(testcase: TestCase, root: MockDataFrameCorpus, child: MockDataFrameCorpus, mask: pd.Series):
+    assert mask.dtype == bool, "Mask is not a boolean."
+    assert root.is_root, "arg: root must be your root corpus. Try .find_root()"
+    child_idx = 0
+    child_docs = child.docs()
+    for root_idx, (m, d) in enumerate(zip(mask, root.docs())):
+        if m:
+            testcase.assertEqual(d, child_docs.iloc[child_idx], f"Invalid doc at {root_idx=} {child_idx=}")
+            child_idx += 1
+
+
 class TestDataFrameCorpus(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -76,13 +87,20 @@ class TestDataFrameCorpus(TestCase):
             self.assertEqual(doc, data.iloc[i], f"Incorrect doc returned at idx={i}.")
         self.assertEqual(i + 1, len(data), f"Incorrect number of docs returned.")
 
-    def test_given_dfcorpus_when_cloned_returns_correct_subcorpus(self):
+    def test_given_dfcorpus_when_cloned_returns_correct_subcorpus_len(self):
         parent = self.root.cloned(test_parent_mask)
         self.assertEqual(len(parent), sum(test_parent_mask),
                          f"Expecting size {sum(test_parent_mask)}. Got {len(parent)}.")
+
         child = parent.cloned(test_child_mask)
         self.assertEqual(len(child), sum(test_child_mask),
                          f"Expecting size {sum(test_child_mask)}. Got {len(child)}.")
+
+    def test_given_dfcorpus_when_cloned_returns_correct_subcorpus_docs(self):
+        parent = self.root.cloned(test_parent_mask)
+        compare(self, self.root, parent, test_parent_mask)
+        child = parent.cloned(test_child_mask)
+        compare(self, parent.find_root(), child, test_child_mask)
 
     def test_given_dfcorpus_when_cloned_then_parent_child_refs_are_valid(self):
         parent = self.root.cloned(test_parent_mask)
