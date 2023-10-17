@@ -21,66 +21,71 @@ class DataFrameCorpusSlicer(object):
     def __init__(self, corpus: wref.ReferenceType['DataFrameCorpus']):
         self._corpus: wref.ReferenceType['DataFrameCorpus'] = corpus
 
-    def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
+    def filter_by_condition(self, name: str, cond_func: Callable[[Any], bool]):
         """ Filter by condition
-        :arg id_ - meta's id
+        :arg name: str - meta name
         :arg cond_func -  Callable that returns a boolean.
         """
-        meta = self._corpus().get_meta(id_)
+        meta = self._corpus().get_meta(name)
         mask = self._mask_by_condition(meta, cond_func)
         return self._corpus().cloned(mask)
 
-    def filter_by_item(self, id_, items):
+    def filter_by_item(self, name: str, items):
         """ Filter by item - items can be str or numeric types.
 
-        :arg id_ - meta's id.
+        :arg name: str - meta name
         :arg items - the list of items to include OR just a single item.
         """
-        meta = self._corpus().get_meta(id_)
+        meta = self._corpus().get_meta(name)
         op = ItemOp(meta, items)
         return self._corpus().cloned(op.mask())
 
-    def filter_by_range(self, id_, min_: Optional[Union[int, float]] = None, max_: Optional[Union[int, float]] = None):
+    def filter_by_range(self, name: str, min_: Optional[Union[int, float]] = None,
+                        max_: Optional[Union[int, float]] = None):
         """ Filter by a range [min, max). Max is non inclusive. """
-        meta = self._corpus().get_meta(id_)
+        meta = self._corpus().get_meta(name)
         if min_ is None and max_ is None: return self._corpus()
         op = RangeOp(meta, min_, max_)
         return self._corpus().cloned(op.mask())
 
-    def filter_by_regex(self, id_, regex: str, ignore_case: bool = False):
+    def filter_by_regex(self, name: str, regex: str, ignore_case: bool = False):
         """ Filter by regex.
+
+        :arg name: str - meta name
         :arg id - meta id
         :arg regex - the regex pattern
         :arg ignore_case - whether to ignore case
         """
-        if id_ == self._corpus().COL_DOC:
+        if name == self._corpus().COL_DOC:
             meta = self._corpus().docs()
         else:
-            meta = self._corpus().get_meta(id_)
+            meta = self._corpus().get_meta(name)
         op = RegexOp(meta, regex, ignore_case)
         return self._corpus().cloned(op.mask())
 
-    def filter_by_datetime(self, id_, start: Optional[str] = None, end: Optional[str] = None,
+    def filter_by_datetime(self, name: str, start: Optional[str] = None, end: Optional[str] = None,
                            strftime: Optional[str] = None):
         """ Filter by datetime in range (start, end].
+        :arg name: str - meta name
         :arg start - any datetime string recognised by pandas.
         :arg end - any datetime string recognised by pandas.
         :arg strftime - datetime string format
 
         If no start or end is provided, it'll return the corpus unsliced.
         """
-        meta = self._corpus().get_meta(id_)
+        meta = self._corpus().get_meta(name)
         if start is None and end is None: return self._corpus()
         op = DatetimeOp(meta, start, end, strftime)
         return self._corpus().cloned(op.mask())
 
-    def group_by(self, id_, grouper: pd.Grouper = None) -> Iterator[tuple[str, 'DataFrameCorpus']]:
+    def group_by(self, name: str, grouper: pd.Grouper = None) -> Iterator[tuple[str, 'DataFrameCorpus']]:
         """ Return groups of the subcorpus based on their metadata.
 
+        :arg name: str - meta name
         :arg grouper: pd.Grouper - as you would in pandas
-        :return tuple[groupid, subcorpus]
+        :return Iterable[tuple[groupid, subcorpus]]
         """
-        meta = self._corpus().get_meta(id_)
+        meta = self._corpus().get_meta(name)
         return ((gid, self._corpus().cloned(mask)) for gid, mask in meta.groupby(grouper=grouper))
 
     def _mask_by_condition(self, meta, cond_func):
