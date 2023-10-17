@@ -8,6 +8,7 @@ from atap_corpus._types import Mask, PathLike, TClonable, TSerialisable
 
 class Clonable(metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._parent: Optional[TClonable] = None  # tracks the parent reference.
         self._mask: Optional[Mask] = None
 
