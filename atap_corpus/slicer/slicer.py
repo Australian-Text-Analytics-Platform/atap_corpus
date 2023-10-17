@@ -21,6 +21,7 @@ class CorpusSlicer(object):
 
     def __init__(self, corpus: wref.ReferenceType[TCorpusWithMeta]):
         self._corpus: wref.ReferenceType[TCorpusWithMeta] = corpus
+        # weakref is used to avoid cyclic refs in composition.
 
     def filter_by_condition(self, name: str, cond_func: Callable[[Any], bool]):
         """ Filter by condition

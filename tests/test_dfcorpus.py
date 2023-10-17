@@ -26,7 +26,6 @@ test_child_mask = pd.Series([0, 1, 0], dtype=bool)
 
 class MockDataFrameCorpus(DataFrameCorpus):
     def __init__(self, docs=None, name=None):
-        if docs is None: docs = data
         super().__init__(docs, name=name)  # generates unique name.
 
 
@@ -36,7 +35,7 @@ class TestDataFrameCorpus(TestCase):
         logging.basicConfig(level=logging.ERROR)
 
     def setUp(self):
-        self.root = MockDataFrameCorpus()
+        self.root = MockDataFrameCorpus(docs=data)
 
         # used to test corpus dtms
         self.tokeniser_func = lambda doc: doc.split()
