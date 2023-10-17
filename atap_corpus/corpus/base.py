@@ -10,7 +10,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Iterable, Hashable, Optional
 import logging
 
-from atap_corpus.interfaces import Clonable, Serialisable, Container
+from atap_corpus.interfaces import Clonable, Serialisable, Container, Filterable
 from atap_corpus._types import TCorpus
 
 logger = logging.getLogger(__name__)
@@ -49,6 +49,10 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
         if not _Global_Corpora.is_unique_name(name):
             raise ValueError(f"{name} already exists.")
         self._name = name
+
+    @abstractmethod
+    def docs(self) -> Filterable:
+        raise NotImplementedError()
 
     def __hash__(self) -> int:
         """ Do not override this or __eq__(). GlobalCorpora depends on this. """

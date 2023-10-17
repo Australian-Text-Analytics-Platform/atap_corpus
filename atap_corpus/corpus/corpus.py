@@ -1,4 +1,5 @@
 import logging
+import weakref as wref
 import zipfile
 from typing import Optional, Generator, Type, IO
 from collections import namedtuple
@@ -13,8 +14,9 @@ from atap_corpus.corpus.base import BaseCorpus
 from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
+from atap_corpus.slicer.slicer import DataFrameCorpusSlicer
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus._types import PathLike, Docs, Mask, Doc
+from atap_corpus._types import PathLike, Docs, Mask
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -169,6 +171,8 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         self._parent: Optional[DataFrameCorpus]
         self._mask: Optional[Mask]
 
+        self._slicer = DataFrameCorpusSlicer(wref.ref(self))
+
     def rename(self, name: str):
         self.name = name
 
@@ -204,6 +208,16 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             return self.find_root()._df.loc[self._mask, self._COL_DOC]
 
     @property
+    def slicer(self) -> DataFrameCorpusSlicer:
+        """ Returns the slicer for this corpus. """
+        return self._slicer
+
+    @property
+    def s(self) -> DataFrameCorpusSlicer:
+        """ Shorthand for slicer. """
+        return self.slicer
+
+    @property
     def metas(self) -> list[str]:
         """ Returns a list of strings representing the metadata in the Corpus. """
         cols = list(self._df.columns)
@@ -216,20 +230,20 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
         return self._df.loc[:, name]
 
-    def add_meta(self, series: pd.Series | list | tuple, name: Optional[str] = None):
+    def add_meta(self, meta: pd.Series | list | tuple, name: Optional[str] = None):
         """ Adds a meta series into the Corpus. Realigns index with Corpus.
         If mismatched size: raises ValueError.
         """
-        if len(series) != len(self):
+        if len(meta) != len(self):
             raise ValueError(
-                f"Added meta {series} does not align with Corpus size. Expecting {len(self)} Got {len(series)}"
+                f"Added meta {meta} does not align with Corpus size. Expecting {len(self)} Got {len(meta)}"
             )
-        if not isinstance(series, pd.Series | list | tuple):
+        if not isinstance(meta, pd.Series | list | tuple):
             raise TypeError("Meta must either be pd.Series, list or tuple.")
-        if isinstance(series, list | tuple):
-            series = pd.Series(series)
-        series = series.reindex(self._df.index)
-        if name is None: name = series.name
+        if isinstance(meta, list | tuple):
+            meta = pd.Series(meta)
+        meta = meta.reindex(self._df.index)
+        if name is None: name = meta.name
         if name == self._COL_DOC:
             raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
         if not isinstance(name, str):
@@ -241,7 +255,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             _ = namedtuple('_', [name])
         except ValueError as _:
             raise KeyError(f"Name of meta {name} must be a valid field name. Please rename.")
-        self._df[name] = series
+        self._df[name] = meta
 
     def remove_meta(self, name: str):
         """ Removes the meta series from the Corpus. """

@@ -1,6 +1,6 @@
 import io
 import os
-from typing import Any, Hashable, Optional, IO
+from typing import Any, Hashable, Optional, IO, Callable, Protocol, runtime_checkable
 from abc import ABCMeta, abstractmethod
 
 from atap_corpus._types import Mask, PathLike, TClonable, TSerialisable
@@ -109,3 +109,9 @@ class Serialisable(metaclass=ABCMeta):
         else:
             raise ValueError(f"{path_or_file} must be a path or IO.")
         return file
+
+
+@runtime_checkable
+class Filterable(Protocol):
+    def apply(self, func: Callable) -> Mask:
+        ...
