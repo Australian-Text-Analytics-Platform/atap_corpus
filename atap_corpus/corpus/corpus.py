@@ -235,7 +235,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
         return self._root_df_with_masked_applied().loc[:, name].copy()
 
-    def add_meta(self, meta: pd.Series | list | tuple, name: Optional[str] = None):
+    def add_meta(self, meta: pd.Series | np.ndarray | list | tuple, name: Optional[str] = None):
         """ Adds a meta series into the Corpus. Realigns index with Corpus.
 
         :arg meta - your metadata collection. Can be a series, list or tuple.
@@ -250,15 +250,15 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         and downstream fn invocations may fail if it can't be used as a namedtuple. This is
         tested in the function and raises an error if it fails.
         """
-        if not isinstance(meta, pd.Series | list | tuple):
+        if not isinstance(meta, pd.Series | np.ndarray | list | tuple):
             raise TypeError("Meta must either be pd.Series, list or tuple.")
-        if isinstance(meta, list | tuple):
-            meta = pd.Series(meta)
+        meta = pd.Series(meta)
         if len(meta) != len(self):
             raise ValueError(f"Metadata collection size did not match. Expecting {len(self)}. Got {len(meta)}.")
         meta: pd.Series
         meta = meta.reindex(self._root_df_with_masked_applied().index)
         if name is None: name = meta.name
+        else: meta.name = name
         if name == self._COL_DOC:
             raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
         if not isinstance(name, str):
