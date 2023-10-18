@@ -3,6 +3,7 @@
 A behaviour class that encompasses the slicing operation.
 """
 import re
+from datetime import datetime
 from typing import Union, IO, Callable
 from abc import abstractmethod
 
@@ -135,7 +136,7 @@ class RegexOp(BaseOperation):
 
 
 class DatetimeOp(BaseOperation):
-    def __init__(self, filterable: Filterable, start: str, end: str, strftime: str = None):
+    def __init__(self, filterable: Filterable, start: str | datetime, end: str | datetime, strftime: str = None):
         super().__init__(filterable)
         self.strftime = strftime
         self.start = pd.to_datetime(start, dayfirst=True, format=self.strftime)

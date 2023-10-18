@@ -1,5 +1,6 @@
 import logging
 import weakref as wref
+from datetime import datetime
 from typing import Union, Callable, Optional, Any, Iterator
 
 import pandas as pd
@@ -65,7 +66,9 @@ class CorpusSlicer(object):
         op = RegexOp(meta, regex, ignore_case)
         return self._corpus().cloned(op.mask())
 
-    def filter_by_datetime(self, name: str, start: Optional[str] = None, end: Optional[str] = None,
+    def filter_by_datetime(self, name: str,
+                           start: Optional[str | datetime] = None,
+                           end: Optional[str | datetime] = None,
                            strftime: Optional[str] = None):
         """ Filter by datetime in range (start, end].
         :arg name: str - meta name
