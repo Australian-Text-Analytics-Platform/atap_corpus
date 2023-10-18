@@ -15,14 +15,14 @@ from unittest import TestCase
 import spacy
 import pandas as pd
 
-from test_dfcorpus import MockDataFrameCorpus, test_child_mask
+from test_dfcorpus import MockDataFrameCorpus, data, test_child_mask
 
 
 class TestDataFrameCorpusSpacyDocMixin(TestCase):
     def setUp(self):
         self.nlp = spacy.blank('en')
         spacy_data = pd.Series(self.nlp.pipe(['a', 'b', 'c']))
-        self.root = MockDataFrameCorpus()
+        self.root = MockDataFrameCorpus(docs=data)
         self.root_spacy = MockDataFrameCorpus(docs=spacy_data)
 
     def test_given_spacy_dfcorpus_then_uses_spacy_is_true(self):
@@ -44,7 +44,7 @@ class TestDataFrameCorpusSpacyDocMixin(TestCase):
         from atap_corpus.corpus.corpus import logger
         import logging
         level = logger.level
-        logger.setLevel(logging.ERROR)      # avoids WARNING message from reprocessing.
+        logger.setLevel(logging.ERROR)  # avoids WARNING message from reprocessing.
         self.root.run_spacy(self.nlp, progress_bar=False)
         self.root.run_spacy(self.nlp, progress_bar=False, reprocess_prompt=False)
         # no assertions for what this test is testing, if no exceptions is raised, it's passed.

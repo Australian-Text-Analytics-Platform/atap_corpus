@@ -1,6 +1,7 @@
 import logging
+import weakref as wref
 import zipfile
-from typing import Optional, Generator, Type, IO
+from typing import Optional, Generator, Type, IO, Iterator
 from collections import namedtuple
 
 import numpy as np
@@ -9,12 +10,13 @@ import spacy
 import spacy.tokens
 from tqdm.auto import tqdm
 
-from atap_corpus.corpus.base import BaseCorpus
+from atap_corpus.corpus.base import BaseCorpusWithMeta
 from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
+from atap_corpus.slicer.slicer import CorpusSlicer
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus._types import PathLike, Docs, Mask, Doc
+from atap_corpus._types import PathLike, Docs, Mask
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -28,31 +30,30 @@ def ensure_docs(docs: pd.Series) -> Docs:
     return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
 
 
-class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
+class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMeta):
     """ Corpus
     This class abstractly represents a corpus which is a collection of documents.
     Each document is also described by their metadata and is used for functions such as slicing.
 
-    An important component of the Corpus is that it also holds the document-term matrix which you can access through
-    the accessor `.dtm`. See class DTM. The dtm is lazily loaded and is always computed for the root corpus.
-    (read further for a more detailed explanation.)
+    An important component of the Corpus is that it also holds the document-term matrix as a sparse matrix.
 
-    A main design feature of the corpus is to allow for easy slicing and dicing based on the associated metadata,
-    text in document. See class CorpusSlicer. After each slicing operation, new but sliced Corpus object is
+    A main design feature of the corpus is to allow for seamless slicing and dicing based on the associated metadata
+    and text in the documents. See class CorpusSlicer. After each slicing operation, new but sliced DataFrameCorpus is
     returned exposing the same descriptive functions (e.g. summary()) you may wish to call again.
 
     Internally, documents are stored as rows of string in a dataframe. Metadata are stored in the meta registry.
     Slicing is equivalent to creating a `cloned()` corpus and is really passing a boolean mask to the dataframe and
     the associated metadata series. When sliced, corpus objects are created with a reference to its parent corpus.
-    This is mainly for performance reasons, so that the expensive DTM computed may be reused and a shared vocabulary
-    is kept for easier analysis of different sliced sub-corpus. You may choose the corpus to be `detached()` from this
-    behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
+    This is mainly for memory and performance reasons, so that the expensive DTM computed may be reused and
+    a shared vocabulary is kept for easier analysis of different sliced sub-corpus.
+
+    You may choose the corpus to be `detached()`. This returns itself as a root DataFrameCorpus and the lineage is
+    discarded.
     """
 
-    _COL_DOC: str = 'document_'
-
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = _COL_DOC, name: str = None) -> 'DataFrameCorpus':
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: Optional[str] = None, name: str = None) -> 'DataFrameCorpus':
+        if col_doc is None: col_doc = cls._COL_DOC
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
@@ -61,7 +62,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
 
     def to_dataframe(self):
         """ Export corpus as a dataframe. """
-        return self._df.copy().reset_index(drop=True)
+        return self._root_df_with_masked_applied().copy().reset_index(drop=True)
 
     def serialise(self, path_or_file: PathLike | IO,
                   metas: list[str] | bool = True, dtms: list[str] | bool = True) -> PathLike:
@@ -85,7 +86,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
         cols.extend(metas)
         if dtms is True: dtms = list(self.dtms.keys())
 
-        to_serialise_df = self._df.loc[:, cols]
+        to_serialise_df = self._root_df_with_masked_applied().loc[:, cols]
         with zipfile.ZipFile(file, 'w') as z:
             with z.open("corpus.parquet", 'w') as zdf:
                 to_serialise_df.to_parquet(zdf, engine='pyarrow', index=False)
@@ -145,27 +146,35 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
 
     def __init__(self, docs: Optional[pd.DataFrame | pd.Series | list[str]] = None, name: str = None):
         super().__init__(name=name)
-        if docs is None:
-            docs = pd.Series(list())
-            self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
-        elif isinstance(docs, pd.Series):
-            self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
-        elif isinstance(docs, pd.DataFrame):
-            if self._COL_DOC not in docs.columns:
-                raise ValueError(f"Column {self._COL_DOC} not found. You must set the col_doc argument.\n"
-                                 f"Available columns: {docs.columns}")
-            ensure_docs(docs.loc[:, self._COL_DOC])
-            self._df = docs
+        if not self.is_root:
+            self._df = None  # allow for cloned to not hold a self._df
         else:
-            raise ValueError(f"{docs} must be either a Series, list or DataFrame.")
+            if docs is None:
+                docs = list()
+            if isinstance(docs, list | Iterator):
+                docs = pd.Series(docs)
+                self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+            elif isinstance(docs, pd.Series):
+                self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+            elif isinstance(docs, pd.DataFrame):
+                if self._COL_DOC not in docs.columns:
+                    raise ValueError(f"Column {self._COL_DOC} not found. You must set the col_doc argument.\n"
+                                     f"Available columns: {docs.columns}")
+                ensure_docs(docs.loc[:, self._COL_DOC])
+                self._df = docs
+            else:
+                raise ValueError(f"{docs} must be either a Series, list or DataFrame.")
 
         # ensure initiated object is well constructed.
-        assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
-            f"More than 1 {self._COL_DOC} column in dataframe."
+        if self._df is not None:
+            assert len(list(filter(lambda x: x == self._COL_DOC, self._df.columns))) <= 1, \
+                f"More than 1 {self._COL_DOC} column in dataframe."
 
-        # from super - nothing is overwritten here just typehints.
+        # from super - Clonable - nothing is overwritten here just typehints.
         self._parent: Optional[DataFrameCorpus]
         self._mask: Optional[Mask]
+
+        self._slicer = CorpusSlicer(wref.ref(self))
 
     def rename(self, name: str):
         self.name = name
@@ -189,72 +198,103 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
 
     def detached(self) -> 'DataFrameCorpus':
         """ Detaches from corpus tree and returns a new Corpus instance as root. """
-        df = self._df.copy().reset_index(drop=True)
+        df = self._root_df_with_masked_applied().copy().reset_index(drop=True)
         name = f"{self.name}-detached"
         name = _Unique_Name_Provider.unique_name_number_suffixed(name=name)
         detached = self.__class__(df[self._COL_DOC], name=name)
         return detached
 
+    def _root_df_with_masked_applied(self) -> pd.DataFrame:
+        """ Return a 'copy' of the root dataframe with current mask applied. """
+        return self._df if self.is_root else self.find_root()._df.loc[self._mask, :]
+
     def docs(self) -> Docs:
-        if self.is_root:
-            return self._df.loc[:, self._COL_DOC]
-        else:
-            return self.find_root()._df.loc[self._mask, self._COL_DOC]
+        """ Return the collection of docs. """
+        return self._root_df_with_masked_applied().loc[:, self._COL_DOC]
+
+    @property
+    def slicer(self) -> CorpusSlicer:
+        """ Returns the slicer for this corpus. """
+        return self._slicer
+
+    @property
+    def s(self) -> CorpusSlicer:
+        """ Shorthand for slicer. """
+        return self.slicer
 
     @property
     def metas(self) -> list[str]:
         """ Returns a list of strings representing the metadata in the Corpus. """
-        cols = list(self._df.columns)
+        cols = list(self.find_root()._df.columns)
         cols.remove(self._COL_DOC)
         return cols
 
     def get_meta(self, name: str) -> pd.Series:
-        """ Get the meta series based on its name and return the entire series. """
+        """ Get a shallow copy of the metadata collection based on its name. """
         if name == self._COL_DOC:
             raise KeyError(f"{name} is reserved for Corpus documents. It is never used for meta data.")
-        return self._df.loc[:, name]
+        return self._root_df_with_masked_applied().loc[:, name].copy()
 
-    def add_meta(self, series: pd.Series | list | tuple, name: Optional[str] = None):
+    def add_meta(self, meta: pd.Series | np.ndarray | list | tuple, name: Optional[str] = None):
         """ Adds a meta series into the Corpus. Realigns index with Corpus.
-        If mismatched size: raises ValueError.
+
+        :arg meta - your metadata collection. Can be a series, list or tuple.
+        :arg name - provide a name for the metadata. (It can only be None if meta is a series)
+        :raises ValueError - if name is invalid.
+        :raises ValueError - if metadata size is mismatched.
+
+        If metadata is added to a clone, it'll populate the root and have NaN values for
+        the documents that are not in the clone.
+
+        There is a restriction on the string for names as pandas uses namedtuple under the hood
+        and downstream fn invocations may fail if it can't be used as a namedtuple. This is
+        tested in the function and raises an error if it fails.
         """
-        if len(series) != len(self):
-            raise ValueError(
-                f"Added meta {series} does not align with Corpus size. Expecting {len(self)} Got {len(series)}"
-            )
-        if not isinstance(series, pd.Series | list | tuple):
+        if not isinstance(meta, pd.Series | np.ndarray | list | tuple):
             raise TypeError("Meta must either be pd.Series, list or tuple.")
-        if isinstance(series, list | tuple):
-            series = pd.Series(series)
-        series = series.reindex(self._df.index)
-        if name is None: name = series.name
+        meta = pd.Series(meta)
+        if len(meta) != len(self):
+            raise ValueError(f"Metadata collection size did not match. Expecting {len(self)}. Got {len(meta)}.")
+        meta: pd.Series
+        meta = meta.reindex(self._root_df_with_masked_applied().index)
+        if name is None: name = meta.name
+        else: meta.name = name
         if name == self._COL_DOC:
             raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
         if not isinstance(name, str):
             # dev - this is due to our syntactic sugar in __getitem__
             raise ValueError("Only str meta names are supported.")
         try:
-            # df.itertuples() uses namedtuple
-            # see https://docs.python.org/3/library/collections.html#collections.namedtuple
+            # df.itertuples() use namedtuple - https://docs.python.org/3/library/collections.html#collections.namedtuple
+            # field name restrictions apply
             _ = namedtuple('_', [name])
         except ValueError as _:
-            raise KeyError(f"Name of meta {name} must be a valid field name. Please rename.")
-        self._df[name] = series
+            raise ValueError(f"Name of meta {name} is not a valid field name. Please rename.")
+
+        # mutating - hence do not use _masked_root_df
+        self.find_root()._df[name] = meta
 
     def remove_meta(self, name: str):
         """ Removes the meta series from the Corpus. """
-        self._df.drop(name, axis=1, inplace=True)
+
+        # mutating - hence do not use _masked_root_df
+        self.find_root()._df.drop(name, axis=1, inplace=True)
         assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
 
     def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """
-        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._df.index)
+        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._root_df_with_masked_applied().index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         name = _Unique_Name_Provider.unique_name_number_suffixed(f"{self.name}-{n}samples")
         return self.cloned(mask, name=name)
 
-    def equals(self, other: 'DataFrameCorpus'):
-        if not other._df.equals(self._df):
+    def equals(self, other: 'DataFrameCorpus') -> bool:
+        """ Checks if the other DataFrameCorpus is equivalent to this.
+        The dataframe and all dtms are compared and must be exactly equal.
+        Does not have to have the same Corpus name.
+        Does not have to have the same Corpus lineage.
+        """
+        if not other._root_df_with_masked_applied().equals(self._root_df_with_masked_applied()):
             return False
         if not other._ClonableDTMRegistryMixin__dtms.keys() == self._ClonableDTMRegistryMixin__dtms.keys():
             return False
@@ -271,7 +311,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             return sum(self._mask)
 
     def __iter__(self):
-        col_text_idx = self._df.columns.get_loc(self._COL_DOC)
+        col_text_idx = self._root_df_with_masked_applied().columns.get_loc(self._COL_DOC)
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
@@ -296,7 +336,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpus):
             start = item.start
             stop = item.stop
             if start is None: start = 0
-            if stop is None: stop = len(self._df)
+            if stop is None: stop = len(self._root_df_with_masked_applied())
             return self.docs().iloc[start:stop]
         else:
             raise NotImplementedError("Only supports int and slice.")

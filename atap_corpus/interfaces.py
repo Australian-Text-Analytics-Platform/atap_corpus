@@ -1,28 +1,34 @@
 import io
 import os
-from typing import Any, Hashable, Optional, TypeVar, IO
+from typing import Any, Hashable, Optional, IO, Callable, Protocol, runtime_checkable
 from abc import ABCMeta, abstractmethod
-from pathlib import Path
 
-from atap_corpus._types import Mask, PathLike
-
-TClonable = TypeVar("TClonable", bound='Clonable')
-TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
+from atap_corpus._types import Mask, PathLike, TClonable, TSerialisable
 
 
 class Clonable(metaclass=ABCMeta):
+    def __new__(cls, *args, **kwargs):
+        instance = super(Clonable, cls).__new__(cls)
+        instance._parent: Optional[TClonable] = None  # tracks the parent reference.
+        instance._mask: Optional[Mask] = None
+        return instance
+
     def __init__(self, *args, **kwargs):
-        self._parent: Optional[TClonable] = None  # tracks the parent reference.
-        self._mask: Optional[Mask] = None
+        super().__init__(*args, **kwargs)
 
     # noinspection PyTypeChecker
     @abstractmethod
     def cloned(self, mask: Mask, *args, **kwargs) -> TClonable:
         """ Returns the Clonable given a binary mask. """
-        cloneable = self.__class__(*args, **kwargs)
-        cloneable._parent = self
-        cloneable._mask = mask
-        return cloneable
+        # set the _parent and _mask before init is called so there's a separation of this
+        # initialisation and hence clonable subclass will have _parent and _mask populated
+        # before __init__ is called, therefore add any conditionals dependent on it as needed.
+        clonable = self.__new__(self.__class__)
+        clonable._parent = self
+        clonable._mask = mask
+        assert not clonable.is_root, "Cloned instances should never be root."
+        clonable.__init__(*args, **kwargs)
+        return clonable
 
     @abstractmethod
     def detached(self) -> TClonable:
@@ -113,3 +119,9 @@ class Serialisable(metaclass=ABCMeta):
         else:
             raise ValueError(f"{path_or_file} must be a path or IO.")
         return file
+
+
+@runtime_checkable
+class Filterable(Protocol):
+    def apply(self, func: Callable) -> Mask:
+        ...

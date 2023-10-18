@@ -4,7 +4,7 @@ import weakref as wref
 import logging
 from datetime import datetime
 
-from atap_corpus.corpus.base import BaseCorpora, TBaseCorpus, BaseCorpus
+from atap_corpus.corpus.base import BaseCorpora, TCorpus, BaseCorpus
 from atap_corpus.mixins import UniqueIDProviderMixin, UniqueNameProviderMixin
 from atap_corpus.utils import format_dunder_str
 
@@ -19,7 +19,7 @@ class UniqueCorpora(BaseCorpora):
 
     def __init__(self, corpus: Optional[BaseCorpus | Iterable[BaseCorpus]] = None):
         super().__init__(corpus)
-        collection: dict[uuid.UUID, TBaseCorpus] = dict()
+        collection: dict[uuid.UUID, TCorpus] = dict()
         if corpus is not None:
             for c in corpus:
                 if c.id in collection.keys():
@@ -28,7 +28,7 @@ class UniqueCorpora(BaseCorpora):
                     collection[c.id] = c
         self._collection = collection
 
-    def add(self, corpus: TBaseCorpus):
+    def add(self, corpus: TCorpus):
         """ Adds a Corpus into the Corpora. Corpus name is used as the name for get(), remove().
         If the same corpus is added again, it'll have no effect.
         """
@@ -46,11 +46,11 @@ class UniqueCorpora(BaseCorpora):
         except KeyError as ke:
             pass
 
-    def items(self) -> list[TBaseCorpus]:
+    def items(self) -> list[TCorpus]:
         """ Returns a list of Corpus in the Corpora. Shallow copies. """
         return list(self._collection.values()).copy()
 
-    def get(self, id_: uuid.UUID | str) -> Optional[TBaseCorpus]:
+    def get(self, id_: uuid.UUID | str) -> Optional[TCorpus]:
         """ Return a reference to a Corpus with the specified name. """
         if isinstance(id_, str): id_ = uuid.UUID(id_)
         return self._collection.get(id_, None)
@@ -67,7 +67,7 @@ class UniqueCorpora(BaseCorpora):
         return format_dunder_str(self.__class__, **{"size": len(self)})
 
 
-class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin):
+class _GlobalCorpora(UniqueIDProviderMixin, UniqueNameProviderMixin, BaseCorpora):
     """ GlobalCorpora
 
     Global corpora holds weak references to all created Corpus objects in a WeakKeyDictionary.
@@ -89,21 +89,21 @@ class _GlobalCorpora(BaseCorpora, UniqueIDProviderMixin, UniqueNameProviderMixin
         if cls._instance is None:
             instance = super(_GlobalCorpora, cls).__new__(cls)
             cls._instance = instance
-            instance._collection: wref.WeakKeyDictionary[wref.ReferenceType[TBaseCorpus], dict]
+            instance._collection: wref.WeakKeyDictionary[wref.ReferenceType[TCorpus], dict]
             instance._collection = wref.WeakKeyDictionary()
             logger.debug("GlobalCorpora singleton created.")
         return cls._instance
 
-    def add(self, corpus: TBaseCorpus):
+    def add(self, corpus: TCorpus):
         self._collection[corpus] = dict(created=datetime.now())
 
-    def get(self, id_: uuid.UUID | str) -> Optional[TBaseCorpus]:
+    def get(self, id_: uuid.UUID | str) -> Optional[TCorpus]:
         raise NotImplementedError(f"Do not get directly from {self.__class__.__name__}.")
 
     def remove(self, id_: uuid.UUID | str):
         raise NotImplementedError(f"Do not remove directly from {self.__class__.__name__}.")
 
-    def items(self) -> list[TBaseCorpus]:
+    def items(self) -> list[TCorpus]:
         return list(self._collection.keyrefs())
 
     def clear(self):

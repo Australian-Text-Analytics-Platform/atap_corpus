@@ -14,7 +14,7 @@ This test suite ensures core global corpora behaviours.
 
 from unittest import TestCase
 
-from test_dfcorpus import MockDataFrameCorpus
+from test_dfcorpus import MockDataFrameCorpus, data
 from atap_corpus.registry import _Global_Corpora
 
 
@@ -22,12 +22,12 @@ class TestGlobalCorpora(TestCase):
 
     def test_given_subclass_dfcorpus_then_corpus_is_added_to_global_corpora(self):
         gcorpora_len = len(_Global_Corpora)
-        dfcorpus = MockDataFrameCorpus()
+        dfcorpus = MockDataFrameCorpus(docs=data)
         assert len(_Global_Corpora) == gcorpora_len + 1, f"{dfcorpus} was not added to GlobalCorpora."
 
     def test_given_subclass_dfcorpus_ref_is_deleted_then_gcorpora_removes_it(self):
         gcorpora_len = len(_Global_Corpora)
-        dfcorpus = MockDataFrameCorpus()
+        dfcorpus = MockDataFrameCorpus(docs=data)
         assert len(_Global_Corpora) == gcorpora_len + 1, f"{dfcorpus} was not added to GlobalCorpora."
 
         del dfcorpus
