@@ -29,6 +29,15 @@ metas: dict[str, pd.Series | list | tuple] = {
 }
 
 
+def dfcorpus_compare(testcase: TestCase, root_meta, child_meta: pd.Series, mask: pd.Series | np.ndarray):
+    """ You can only use this function if the meta came from a dataframe corpus since meta must be a series."""
+    idx = 0
+    for metadatum, m in zip(root_meta, mask):
+        if m:
+            testcase.assertEqual(child_meta.iloc[idx], metadatum, f"Incorrect value at index={idx} given mask.")
+            idx += 1
+
+
 class TestCorpusSlicer(TestCase):
     def setUp(self):
         self.root = MockDataFrameCorpus(docs=data)
@@ -39,12 +48,7 @@ class TestCorpusSlicer(TestCase):
         name = 'meta_int'
         child: MockDataFrameCorpus = self.root.slicer.filter_by_condition(name, lambda i: i > (len(self.root) / 2))
         self.assertEqual(len(child), (metas.get(name) > len(self.root) / 2).sum())
-        meta = child.get_meta(name)
-        idx = 0
-        for metadatum, m in zip(metas.get(name), (metas.get(name) > len(self.root) / 2)):
-            if m:
-                self.assertEqual(meta.iloc[idx], metadatum, f"Incorrect value at index={idx} for the child meta.")
-                idx += 1
+        dfcorpus_compare(self, metas.get(name), child.get_meta(name), (metas.get(name) > len(self.root) / 2))
 
     def test_given_dfcorpus_when_filter_by_item_then_filtered_correctly(self):
         pass
