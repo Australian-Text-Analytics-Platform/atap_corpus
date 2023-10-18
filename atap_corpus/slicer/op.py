@@ -58,9 +58,9 @@ class BaseOperation(Serialisable):
 
 class CallableOp(BaseOperation):
 
-    def __init__(self, filterable: Filterable, fn: Callable):
+    def __init__(self, filterable: Filterable, condition_fn: Callable):
         super().__init__(filterable)
-        self._callable = fn
+        self._callable = condition_fn
 
     def condition_func(self, any_) -> bool:
         return self._callable(any_)
