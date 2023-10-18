@@ -60,7 +60,7 @@ class CallableOp(BaseOperation):
 
     def __init__(self, filterable: Filterable, fn: Callable):
         super().__init__(filterable)
-        self._fn = fn
+        self._callable = fn
 
     def condition_func(self, any_) -> bool:
         return self._callable(any_)
