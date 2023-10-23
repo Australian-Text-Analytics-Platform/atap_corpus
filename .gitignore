@@ -25,3 +25,6 @@ tests/ltest*
 
 # dev - ignore all ltest notebooks (learning tests)
 ltest_*.ipynb
+
+# pypi
+dist/*
