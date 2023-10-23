@@ -343,7 +343,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             raise NotImplementedError("Only supports int and slice.")
 
     def __str__(self) -> str:
-        return format_dunder_str(self.__class__, self.name, {"size": len(self)})
+        return format_dunder_str(self.__class__, self.name, **{"size": len(self)})
 
     # -- ClonableDTMRegistryMixin
     @classmethod
