@@ -152,10 +152,11 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             if docs is None:
                 docs = list()
             if isinstance(docs, list | Iterator):
-                docs = pd.Series(docs)
-                self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+                docs = pd.Series(docs, name=self._COL_DOC)
+                self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs))
             elif isinstance(docs, pd.Series):
-                self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs), columns=[self._COL_DOC])
+                docs.name = self._COL_DOC
+                self._df: pd.DataFrame = pd.DataFrame(ensure_docs(docs))
             elif isinstance(docs, pd.DataFrame):
                 if self._COL_DOC not in docs.columns:
                     raise ValueError(f"Column {self._COL_DOC} not found. You must set the col_doc argument.\n"
