@@ -2,8 +2,9 @@
 name = "atap_corpus"
 version = "0.1.0"
 description = "Corpus mini-framework allowing for memory-efficient slicing and provides a standardised base corpus structure for the collection of ATAP tools. "
-authors = ["Jack <huen.chan@sydney.edu.au>"]
+authors = ["Jack Chan <huen.chan@sydney.edu.au>"]
 readme = "README.md"
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"
