@@ -57,7 +57,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         if col_doc not in df.columns:
             raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
-        df = df.copy().reset_index()
+        df = df.copy().reset_index(drop=True)
 
         corpus = cls(df[col_doc], name=name)
         col_metas = [c for c in df.columns if c != col_doc]
