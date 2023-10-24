@@ -196,7 +196,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         if not mask.isin((0, 1)).all():
             raise ValueError(f"Mask pd.Series is not a valid mask. Must be either boolean or binary.")
         mask = mask.astype('bool')
-        name = f"{self.name}." if name is None else f"{self.name}.{name}"  # dot notation
+        name = self.name if name is None else name  # dot notation
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
         clone = super().cloned(mask, name=name)
         clone: DataFrameCorpus
