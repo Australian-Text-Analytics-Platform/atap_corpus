@@ -92,7 +92,7 @@ class UniqueNameProviderMixin(object):
         suffix = 0
         while uniq_name := name + str(suffix):
             if self.is_unique_name(uniq_name):
-                return name
+                return uniq_name
             suffix += 1
 
 
