@@ -82,15 +82,18 @@ class UniqueNameProviderMixin(object):
                 return name
         raise RuntimeError("all unique names exhausted.")
 
-    def unique_name_number_suffixed(self, name: str) -> str:
+    def unique_name_number_suffixed(self, name: str, delimiter: str = '.') -> str:
         """ Returns a unique name based on provided name by suffixing with a number that is infinitely incremented
+        If name provided is unique, name is returned.
         :param name: the name you want to retain.
+        :param delimiter: when suffixed use this delimiter (defaults to '.')
         :return: a unique name suffixed with a number if the name you want to retain won't be unique.
         :raises MemoryError - very minimal possibility.
         Note: python supports infinite integers as long as you have enough memory. Until it raises MemoryError.
         """
+        if self.is_unique_name(name): return name
         suffix = 0
-        while uniq_name := name + str(suffix):
+        while uniq_name := name + delimiter + str(suffix):
             if self.is_unique_name(uniq_name):
                 return uniq_name
             suffix += 1
