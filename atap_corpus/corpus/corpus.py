@@ -287,10 +287,13 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         self.find_root()._df.drop(name, axis=1, inplace=True)
         assert name not in self.metas, f"meta: {name} did not get removed from Corpus. Try again."
 
-    def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
+    def sample(self, n: int, rand_stat: Optional[int] = None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """
-        mask = pd.Series(np.zeros(len(self.find_root())), dtype=bool, index=self._mask.index)
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        if n > len(self): raise ValueError(f"Unable to sample {n} from a corpus of size {len(self)}.")
+        mask = pd.Series(np.zeros(shape=len(self.find_root())), dtype=bool)
+        rng = np.random.default_rng(rand_stat)
+        true_indices = rng.choice(self._root_df_with_masked_applied().index, size=n, replace=False)
+        mask.loc[true_indices] = True
         name = f"{self.name}.{n}samples"
         return self.cloned(mask, name=_Unique_Name_Provider.unique_name_number_suffixed(name, delimiter='-'))
 

@@ -207,3 +207,11 @@ class TestDataFrameCorpus(TestCase):
         deserialised = DataFrameCorpus.deserialise(path)
         os.remove(path)
         self.assertTrue(self.root.equals(deserialised))
+
+    # -- sampling
+    def test_given_dfcorpus_and_sample_then_sample_size_is_correct(self):
+        n0, n1 = 2, 1
+        sampled_0 = self.root.sample(n0)
+        self.assertEqual(len(sampled_0), n0, "Sampling did not sample the correct number of samples.")
+        sampled_1 = sampled_0.sample(n1)
+        self.assertEqual(len(sampled_1), n1, "Sampling did not sample the correct number of samples.")
