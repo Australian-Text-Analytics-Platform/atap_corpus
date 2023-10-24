@@ -297,6 +297,40 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         name = f"{self.name}.{n}samples"
         return self.cloned(mask, name=_Unique_Name_Provider.unique_name_number_suffixed(name, delimiter='-'))
 
+    def join(self, other: 'DataFrameCorpus', name: Optional[str] = None) -> 'DataFrameCorpus':
+        """ Joins 2 DataFrameCorpus that are from the same tree together and return a joined clone from
+        their first common ancestor.
+        :param other: the DataFrameCorpus to join.
+        :param name: name of the Corpus (default: common_parent.self.name+other.name)
+        :return: joined DataFrameCorpus.
+        """
+        if not self.find_root() == other.find_root():
+            raise TypeError(f"{other.name} is not derived from the same tree as {self.name}.")
+        common_parent: 'DataFrameCorpus' = self.find_common_parent(other)
+        mask = (self._mask | other._mask)
+        name = f"{common_parent.name}.({self.name}+{other.name})" if name is None else name
+        return common_parent.cloned(mask, name=name)
+
+    def find_common_parent(self, other: 'DataFrameCorpus') -> 'DataFrameCorpus':
+        """ Returns their first common parent DataFrameCorpus.
+        :param other: the other DataFrameCorpus to check against.
+        :return: the first common parent DataFrameCorpus.
+        """
+        if not self.find_root() == other.find_root():
+            raise TypeError(f"{other.name} is not derived from the same tree as {self.name}.")
+        parents = set()
+        parent = self
+        while parent is not None:
+            parents.add(parent)
+            parent = parent.parent
+
+        parent = other.parent
+        while parent is not None:
+            if parent in parents:
+                return parent
+            parent = parent.parent
+        raise RuntimeError(f"No common parent found for {self.name} and {other.name}.")  # should never be raised.
+
     def equals(self, other: 'DataFrameCorpus') -> bool:
         """ Checks if the other DataFrameCorpus is equivalent to this.
         The dataframe and all dtms are compared and must be exactly equal.
