@@ -289,7 +289,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
 
     def sample(self, n: int, rand_stat=None) -> 'DataFrameCorpus':
         """ Uniformly sample from the corpus. This creates a clone. """
-        mask = pd.Series(np.zeros(len(self)), dtype=bool, index=self._root_df_with_masked_applied().index)
+        mask = pd.Series(np.zeros(len(self.find_root())), dtype=bool, index=self._mask.index)
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         name = f"{self.name}.{n}samples"
         return self.cloned(mask, name=_Unique_Name_Provider.unique_name_number_suffixed(name, delimiter='-'))
