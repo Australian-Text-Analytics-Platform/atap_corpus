@@ -22,6 +22,7 @@ from atap_corpus.corpus.corpus import DataFrameCorpus
 data = pd.Series(['a', 'b', 'c'])
 test_parent_mask = pd.Series([0, 1, 1], dtype=bool)
 test_child_mask = pd.Series([0, 1, 0], dtype=bool)
+test_parent2_mask = pd.Series([1, 0, 0], dtype=bool)
 
 
 class MockDataFrameCorpus(DataFrameCorpus):
@@ -215,3 +216,19 @@ class TestDataFrameCorpus(TestCase):
         self.assertEqual(len(sampled_0), n0, "Sampling did not sample the correct number of samples.")
         sampled_1 = sampled_0.sample(n1)
         self.assertEqual(len(sampled_1), n1, "Sampling did not sample the correct number of samples.")
+
+    # -- join
+    def test_given_two_subdfcorpus_of_same_subtree_and_joined_then_joined_is_correct(self):
+        parent = self.root.cloned(test_parent_mask)
+        child = parent.cloned(test_child_mask)
+        joined = parent.join(child)
+        self.assertEqual(len(joined), len(parent), "Should be the size of the first common parent.")
+        self.assertEqual(joined.parent, parent, f"Expecting common parent {parent}. Got {joined.parent}.")
+
+    def test_given_two_subdfcorpus_of_diff_subtree_and_joined_then_joined_is_correct(self):
+        parent0 = self.root.cloned(test_parent_mask)
+        parent1 = self.root.cloned(test_parent2_mask)
+        or_size = (test_parent_mask | test_parent2_mask).sum()
+        joined = parent0.join(parent1)
+        self.assertEqual(len(joined), or_size, f"Incorrect size after join. Expecting {or_size}. Got {len(joined)}")
+        self.assertEqual(joined.parent, self.root, f"Expecting common parent {self.root}. Got {joined.parent}.")
