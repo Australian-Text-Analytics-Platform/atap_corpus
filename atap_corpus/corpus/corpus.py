@@ -297,6 +297,19 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         name = f"{self.name}.{n}samples"
         return self.cloned(mask, name=_Unique_Name_Provider.unique_name_number_suffixed(name, delimiter='-'))
 
+    def join(self, other: 'DataFrameCorpus', name: Optional[str] = None) -> 'DataFrameCorpus':
+        # shares the same root? -> joinable.
+        # just combine their masks, and who's their parent - i guess first shared parent.
+        if not self.find_root() == other.find_root():
+            raise TypeError(f"{other.name} is not derived from the same tree as {self.name}.")
+        # todo: find common parent.
+
+        # create new mask
+        mask = (self._mask | other._mask)
+
+        # todo: clone from parent's DataFrameCorpus with mask and name. Then return.
+        pass
+
     def equals(self, other: 'DataFrameCorpus') -> bool:
         """ Checks if the other DataFrameCorpus is equivalent to this.
         The dataframe and all dtms are compared and must be exactly equal.
