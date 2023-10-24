@@ -90,8 +90,8 @@ class UniqueNameProviderMixin(object):
         Note: python supports infinite integers as long as you have enough memory. Until it raises MemoryError.
         """
         suffix = 0
-        while name := name + str(suffix):
-            if self.is_unique_name(name):
+        while uniq_name := name + str(suffix):
+            if self.is_unique_name(uniq_name):
                 return name
             suffix += 1
 
