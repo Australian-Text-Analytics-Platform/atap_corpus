@@ -52,6 +52,27 @@ class Clonable(metaclass=ABCMeta):
             parent = parent.parent
         return parent
 
+    def find_lowest_common_ancestor(self, other: TClonable) -> TClonable:
+        """ Returns the lowest common ancestor with the 'other' Clonable.
+        :param other: the other Clonable to check against.
+        :return: the lowest common ancestor/first common parent Clonable.
+        """
+        if not self.find_root() == other.find_root():
+            raise TypeError(f"{other} do not share the same root as {self}.")
+        parents = set()
+        parent = self
+        while parent is not None:
+            parents.add(parent)
+            parent = parent.parent
+
+        parent = other.parent
+        while parent is not None:
+            if parent in parents:
+                return parent
+            parent = parent.parent
+        # should never be raised.
+        raise RuntimeError(f"No common parent found for {self} and {other} despite same root.")
+
 
 # dev - not sure if we should use Protocol or ABC.
 class Container(metaclass=ABCMeta):
