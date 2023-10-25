@@ -119,10 +119,12 @@ class Serialisable(metaclass=ABCMeta):
         """
         if isinstance(path_or_file, str | os.PathLike):
             file = io.BufferedReader(io.FileIO(path_or_file, mode='r'))
-        if isinstance(path_or_file, io.IOBase):
+        elif isinstance(path_or_file, io.IOBase):
             file = path_or_file
             if not path_or_file.readable():
                 raise io.UnsupportedOperation(f"{path_or_file} is not readable.")
+        else:
+            raise ValueError(f"{path_or_file} must be a path or IO.")
         return file
 
     @abstractmethod
