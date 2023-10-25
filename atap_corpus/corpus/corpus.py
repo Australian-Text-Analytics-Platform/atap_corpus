@@ -73,8 +73,6 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
     def serialise(self, path_or_file: PathLike | IO,
                   metas: list[str] | bool = True, dtms: list[str] | bool = True) -> PathLike:
         """ Serialises the Corpus as a zip.
-        If you've supplied an IO, it'll be closed.
-
         :param path_or_file: path or io.
         :param metas: serialise all metadata or provided list.
         :param dtms: serialise all dtms or provided list.
@@ -109,7 +107,6 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
     @classmethod
     def deserialise(cls, path_or_file: PathLike | IO) -> 'DataFrameCorpus':
         """ Deserialises your path or IO into a DataFrameCorpus.
-        If you've supplied an IO, it'll be closed.
         :param path_or_file: path or io.
         :return: DataFrameCorpus.
         """
