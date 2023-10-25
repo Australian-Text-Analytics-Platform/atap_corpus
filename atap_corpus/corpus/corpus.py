@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import spacy
 import spacy.tokens
+import srsly
 from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpusWithMeta
@@ -87,20 +88,28 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         cols.extend(metas)
         if dtms is True: dtms = list(self.dtms.keys())
 
-        to_serialise_df = self._root_df_with_masked_applied().loc[:, cols]
+        df_to_serialise = self._root_df_with_masked_applied().loc[:, cols]
         with zipfile.ZipFile(file, 'w') as z:
+            # serialise - dataframe
             with z.open("corpus.parquet", 'w') as zdf:
-                to_serialise_df.to_parquet(zdf, engine='pyarrow', index=False)
+                df_to_serialise.to_parquet(zdf, engine='pyarrow', index=False)
 
-            # python3.10 uses .writestr and >3.11 uses .mkdir
+            # serialise - dtms
             dtm_dir = "dtms"
+            # python3.10 uses .writestr and >3.11 uses .mkdir
             z.writestr(f"{dtm_dir}/", '')  # works on MacOS, Linux (binder instance)
             for dtm_key in dtms:
                 dtm: BaseDTM = self.dtms.get(dtm_key)
                 with z.open(f"{dtm_dir}/{dtm_key}.zip", 'w') as dtmz:
                     dtm.serialise(dtmz)
 
+            # serialise - corpus meta
+            with open("corpus.meta", 'wb') as zcm:
+                zcm.write(srsly.msgpack_dumps(self.corpus_meta))
+
+            # serialise - corpus name
             z.writestr("name", self.name.encode("utf-8"))
+
         if should_close: file.close()
         return path_or_file
 
@@ -113,8 +122,9 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         file, shoud_close = super().deserialise(path_or_file)
 
         df: Optional[pd.DataFrame] = None
-        name: Optional[str] = None
         dtms: dict[str, cls.dtm_cls()] = dict()
+        corpus_meta: dict = dict()
+        name: Optional[str] = None
         with zipfile.ZipFile(file, 'r') as z:
             dtm_dir = "dtms"
             files = z.namelist()
@@ -129,6 +139,9 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
                 if f == "corpus.parquet":
                     with z.open(f, 'r') as df_h:
                         df = pd.read_parquet(df_h)
+                if f == "corpus.meta":
+                    with z.open(f, 'r') as cm_h:
+                        corpus_meta = srsly.msgpack_loads(cm_h.read(), use_list=True)
                 if f == "name":
                     with z.open(f, 'r') as n_h:
                         name = str(n_h.read())
@@ -136,16 +149,15 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         if df is None:
             raise FileNotFoundError("Missing corpus.parquet file in your zip.")
         else:
-            if name is None: logger.warning("Missing corpus name from your zip.")
+            if name is None: logger.warning("Missing corpus name from your zip. One will be randomly generated.")
             corpus = cls(docs=df, name=name)
             corpus._ClonableDTMRegistryMixin__dtms = dtms
+            corpus._corpus_meta = corpus_meta
             return corpus
 
     def __init__(self, docs: Optional[pd.DataFrame | pd.Series | list[str]] = None, name: str = None):
         super().__init__(name=name)
-        if not self.is_root:
-            self._df = None  # allow for cloned to not hold a self._df
-        else:
+        if self.is_root:
             if docs is None:
                 docs = list()
             if isinstance(docs, list | Iterator):
@@ -162,6 +174,8 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
                 self._df = docs
             else:
                 raise ValueError(f"{docs} must be either a Series, list or DataFrame.")
+        else:
+            self._df = None  # allow for cloned to not hold a self._df
 
         # ensure initiated object is well constructed.
         if self._df is not None:
@@ -172,7 +186,15 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         self._parent: Optional[DataFrameCorpus]
         self._mask: Optional[Mask]
 
+        # instance vars
         self._slicer = CorpusSlicer(wref.ref(self))
+
+        if self.is_root:
+            self._corpus_meta = dict()
+
+    @property
+    def corpus_meta(self) -> dict:
+        return self.find_root()._corpus_meta
 
     def cloned(self, mask: Mask, name: Optional[str] = None) -> 'DataFrameCorpus':
         """ Returns a clone of itself by applying the boolean mask.
