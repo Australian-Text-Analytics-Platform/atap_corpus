@@ -117,15 +117,17 @@ class Serialisable(metaclass=ABCMeta):
 
         This base method transform path into binary io, otherwise io is passed through.
         """
+        should_close = True
         if isinstance(path_or_file, str | os.PathLike):
             file = io.BufferedReader(io.FileIO(path_or_file, mode='r'))
         elif isinstance(path_or_file, io.IOBase):
             file = path_or_file
             if not path_or_file.readable():
                 raise io.UnsupportedOperation(f"{path_or_file} is not readable.")
+            should_close = False
         else:
             raise ValueError(f"{path_or_file} must be a path or IO.")
-        return file
+        return file, should_close
 
     @abstractmethod
     def serialise(self, path_or_file: PathLike | IO, *args, **kwargs) -> PathLike | IO:
@@ -133,15 +135,17 @@ class Serialisable(metaclass=ABCMeta):
 
         This base method transform path into binary io, otherwise io is passed through.
         """
+        should_close = True
         if isinstance(path_or_file, str | os.PathLike):
             file = io.BufferedWriter(io.FileIO(path_or_file, mode='wb'))
         elif isinstance(path_or_file, io.IOBase):
             file = path_or_file
             if not file.writable():
                 raise io.UnsupportedOperation(f"{path_or_file} is not writable.")
+            should_close = False
         else:
             raise ValueError(f"{path_or_file} must be a path or IO.")
-        return file
+        return file, should_close
 
 
 @runtime_checkable

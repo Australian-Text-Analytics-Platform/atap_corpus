@@ -1,3 +1,4 @@
+import io
 import logging
 import weakref as wref
 import zipfile
@@ -79,10 +80,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         :param dtms: serialise all dtms or provided list.
         :return: serialised path or IO (closed).
         """
-        # dev - probably not a good idea to close the IO if it is one.
-        # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
-
-        file = super().serialise(path_or_file=path_or_file)
+        file, should_close = super().serialise(path_or_file=path_or_file)
         if not self.is_root:
             logger.warning("You are serialising a subcorpus. When you deserialise this it'll be a root corpus.")
 
@@ -105,7 +103,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
                     dtm.serialise(dtmz)
 
             z.writestr("name", self.name.encode("utf-8"))
-        file.close()
+        if should_close: file.close()
         return path_or_file
 
     @classmethod
@@ -115,10 +113,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         :param path_or_file: path or io.
         :return: DataFrameCorpus.
         """
-        # dev - probably not a good idea to close the IO if it is one.
-        # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
-
-        file = super().deserialise(path_or_file)
+        file, shoud_close = super().deserialise(path_or_file)
 
         df: Optional[pd.DataFrame] = None
         name: Optional[str] = None
@@ -140,7 +135,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
                 if f == "name":
                     with z.open(f, 'r') as n_h:
                         name = str(n_h.read())
-        file.close()
+        if shoud_close: file.close()
         if df is None:
             raise FileNotFoundError("Missing corpus.parquet file in your zip.")
         else:
