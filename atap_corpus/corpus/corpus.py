@@ -177,9 +177,6 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
 
         self._slicer = CorpusSlicer(wref.ref(self))
 
-    def rename(self, name: str):
-        self.name = name
-
     def cloned(self, mask: Mask, name: Optional[str] = None) -> 'DataFrameCorpus':
         """ Returns a clone of itself by applying the boolean mask.
         The returned clone will retain a parent-child relationship from which it is cloned.

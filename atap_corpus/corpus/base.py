@@ -52,6 +52,9 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
             raise ValueError(f"{name} already exists.")
         self._name = name
 
+    def rename(self, name: str):
+        self.name = name
+
     @abstractmethod
     def docs(self) -> Filterable:
         raise NotImplementedError()
