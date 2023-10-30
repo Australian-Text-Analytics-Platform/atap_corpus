@@ -29,7 +29,7 @@ panel = { version = "^1.2.3", optional = true }
 
 # extras: apple
 thinc-apple-ops = { extras = ["apple"], version = "^0.1.0", platform = "apple", optional = true }
-urllib3 = { version = "^1.26.6", optional = true }     # ImportError: urllib3 v2.0 only supports OpenSSL 1.1.1+ (Mac ARM architecture)
+urllib3 = { version = "^1.26.18", optional = true }     # ImportError: urllib3 v2.0 only supports OpenSSL 1.1.1+ (Mac ARM architecture)
 
 [tool.poetry.group.dev]
 optional = true
