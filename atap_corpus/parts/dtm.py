@@ -124,10 +124,10 @@ class DTM(BaseDTM):
                 raise TypeError("The tokeniser_func provided did not return a list.")
 
         terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
-        matrix = lil_matrix((len(docs), len(terms)))  # perf: lil_matrix is most efficient for row-wise replacement.
+        matrix = lil_matrix((len(docs), len(terms)), dtype=np.integer)  # perf: lil_matrix is most efficient for row-wise replacement.
         for i, doc_terms in enumerate(series_of_terms):
             doc_terms = Counter(doc_terms)
-            count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms])
+            count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms], dtype=np.integer)
             matrix[i] = count_vector
 
         dtm = cls()
@@ -248,7 +248,7 @@ class DTM(BaseDTM):
         for row, col in zip(*nonzeros):
             freq = self.matrix[row, col]
             term = self.terms[col]
-            terms = [term] * freq
+            terms = [term] * int(freq)
             word_lists[row].extend(terms)
         return word_lists
 
