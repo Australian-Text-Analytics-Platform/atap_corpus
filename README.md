@@ -15,13 +15,17 @@ Corpus can also be serialised and deserialised which can be used to carry across
 pip install atap_corpus
 ```
 
-### Extras: Viz:
+[//]: # (### Extras: Viz:)
 
-Out of the box, Corpus also comes with simple and quick visualisations such as word clouds, timelines etc.
+[//]: # ()
+[//]: # (Out of the box, Corpus also comes with simple and quick visualisations such as word clouds, timelines etc.)
 
-```shell
-pip install atap_corpus[viz]
-```
+[//]: # ()
+[//]: # (```shell)
+
+[//]: # (pip install atap_corpus[viz])
+
+[//]: # (```)
 
 ## Tests
 
