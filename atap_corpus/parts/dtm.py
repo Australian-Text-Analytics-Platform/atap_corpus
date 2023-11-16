@@ -57,7 +57,7 @@ class DTM(BaseDTM):
         """
         # dev - probably not a good idea to close the IO if it is one.
         # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
-        file = super().deserialise(path_or_file)
+        file, should_close = super().deserialise(path_or_file)
 
         with zipfile.ZipFile(file, mode='r') as z:
             mtx_path = Path("matrix").with_suffix(".npz")
@@ -66,7 +66,7 @@ class DTM(BaseDTM):
                 matrix = load_npz(mh)
             with z.open(trm_path.__str__(), 'r') as th:
                 terms = srsly.msgpack_loads(th.read())
-        file.close()
+        if should_close: file.close()
         return cls.from_matrix(matrix, terms)
 
     def serialise(self, path_or_file: PathLike | io.IOBase) -> PathLike:
@@ -78,7 +78,7 @@ class DTM(BaseDTM):
         """
         # dev - probably not a good idea to close the IO if it is one.
         # but since base function converts path to IO, we need some flag OR scrap the pattern all togther.
-        file = super().serialise(path_or_file)
+        file, should_close = super().serialise(path_or_file)
 
         with zipfile.ZipFile(file, mode='w') as z:
             mtx_path = Path("matrix").with_suffix(".npz")
@@ -87,7 +87,7 @@ class DTM(BaseDTM):
                 save_npz(mh, self.matrix)
             with z.open(trm_path.__str__(), 'w') as th:
                 th.write(srsly.msgpack_dumps(self.terms))
-        file.close()
+        if should_close: file.close()
         return path_or_file
 
     @classmethod
@@ -124,7 +124,8 @@ class DTM(BaseDTM):
                 raise TypeError("The tokeniser_func provided did not return a list.")
 
         terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
-        matrix = lil_matrix((len(docs), len(terms)), dtype=np.integer)  # perf: lil_matrix is most efficient for row-wise replacement.
+        matrix = lil_matrix((len(docs), len(terms)),
+                            dtype=np.integer)  # perf: lil_matrix is most efficient for row-wise replacement.
         for i, doc_terms in enumerate(series_of_terms):
             doc_terms = Counter(doc_terms)
             count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms], dtype=np.integer)
