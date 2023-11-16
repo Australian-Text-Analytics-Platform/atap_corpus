@@ -197,7 +197,18 @@ class ClonableDTMRegistryMixin(object):
         else:
             return root_dtm.cloned(self._mask)
 
-    def add_dtm(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
+    def add_dtm(self, dtm: BaseDTM, name: str):
+        self: Clonable | 'ClonableDTMRegistryMixin'
+        root = self.find_root()
+        if name in root.__dtms.keys():
+            raise ValueError(f"{name} already exist. Maybe remove it?")
+        if dtm.num_docs != len(root):
+            raise ValueError(f"Mismatched number of docs with root Corpus. "
+                             f"Expecting {len(root)}. Got {dtm.num_docs}.")
+        root.__dtms[name] = dtm
+
+    def add_dtm_from_docs(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
+        """ Add a DTM using the provided tokeniser_func which tokenises the documents."""
         self: Clonable | 'ClonableDTMRegistryMixin'
         root = self.find_root()
         if name in root.__dtms.keys():
