@@ -17,20 +17,20 @@ class BaseDTM(Clonable, Serialisable, metaclass=ABCMeta):
 
     @classmethod
     @abstractmethod
-    def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]], *args, **kwargs):
+    def from_docs(cls, docs: Docs, tokeniser_func: Callable[[Doc], list[str]]):
         raise NotImplementedError()
 
-    @abstractmethod
     @property
+    @abstractmethod
     def num_terms(self):
         raise NotImplementedError()
 
-    @abstractmethod
     @property
+    @abstractmethod
     def num_docs(self):
         raise NotImplementedError()
 
-    @abstractmethod
     @property
+    @abstractmethod
     def total(self):
         raise NotImplementedError()

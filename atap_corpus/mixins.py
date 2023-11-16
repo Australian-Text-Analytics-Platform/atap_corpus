@@ -198,6 +198,8 @@ class ClonableDTMRegistryMixin(object):
             return root_dtm.cloned(self._mask)
 
     def add_dtm(self, dtm: BaseDTM, name: str):
+        if not isinstance(dtm, BaseDTM):
+            raise TypeError(f"dtm is not a {BaseDTM.__name__}. Got {dtm.__class__.__name__}")
         self: Clonable | 'ClonableDTMRegistryMixin'
         root = self.find_root()
         if name in root.__dtms.keys():
@@ -209,6 +211,8 @@ class ClonableDTMRegistryMixin(object):
 
     def add_dtm_from_docs(self, tokeniser_func: Callable[[Doc], list[str]], name: str):
         """ Add a DTM using the provided tokeniser_func which tokenises the documents."""
+        if not callable(tokeniser_func):
+            raise TypeError(f"tokeniser_func is not a callable.")
         self: Clonable | 'ClonableDTMRegistryMixin'
         root = self.find_root()
         if name in root.__dtms.keys():
