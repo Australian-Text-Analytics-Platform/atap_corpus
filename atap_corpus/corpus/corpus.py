@@ -2,13 +2,14 @@ import io
 import logging
 import weakref as wref
 import zipfile
-from typing import Optional, Generator, Type, IO, Iterator
+from typing import Optional, Generator, Type, IO, Iterator, Hashable
 from collections import namedtuple
 
 import numpy as np
 import pandas as pd
 import spacy
 import spacy.tokens
+import srsly
 from tqdm.auto import tqdm
 
 from atap_corpus.corpus.base import BaseCorpusWithMeta
@@ -17,7 +18,7 @@ from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
 from atap_corpus.slicer.slicer import CorpusSlicer
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus._types import PathLike, Docs, Mask
+from atap_corpus._types import PathLike, Docs, Mask, MPK_SUPPORTED
 from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,9 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             with z.open("corpus.parquet", 'w') as zdf:
                 to_serialise_df.to_parquet(zdf, engine='pyarrow', index=False)
 
+            with z.open("corpus.attribs", 'w') as zattrib:
+                zattrib.write(srsly.msgpack_dumps(self._attributes))
+
             # python3.10 uses .writestr and >3.11 uses .mkdir
             dtm_dir = "dtms"
             z.writestr(f"{dtm_dir}/", '')  # works on MacOS, Linux (binder instance)
@@ -132,12 +136,16 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
                 if f == "name":
                     with z.open(f, 'r') as n_h:
                         name = str(n_h.read())
+                if f == "corpus.attribs":
+                    with z.open(f, 'r') as a_h:
+                        attribs = srsly.msgpack_loads(a_h.read())
         if shoud_close: file.close()
         if df is None:
             raise FileNotFoundError("Missing corpus.parquet file in your zip.")
         else:
             if name is None: logger.warning("Missing corpus name from your zip.")
             corpus = cls(docs=df, name=name)
+            corpus._attributes = attribs
             corpus._ClonableDTMRegistryMixin__dtms = dtms
             return corpus
 
@@ -202,6 +210,14 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
     def _root_df_with_masked_applied(self) -> pd.DataFrame:
         """ Return a 'copy' of the root dataframe with current mask applied. """
         return self._df if self.is_root else self.find_root()._df.loc[self._mask, :]
+
+    def attribute(self, key: Hashable, value: MPK_SUPPORTED):
+        # serialisation in DataFrameCorpus uses msgpack for attributes.
+        try:
+            srsly.msgpack_dumps(dict(key=value))
+        except TypeError:
+            raise TypeError("key or value is not serialisable by msgpack.")
+        super().attribute(key=key, value=value)
 
     def docs(self) -> Docs:
         """ Return the collection of docs. """

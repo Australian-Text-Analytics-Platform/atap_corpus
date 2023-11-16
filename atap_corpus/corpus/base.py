@@ -10,8 +10,10 @@ from abc import ABCMeta, abstractmethod
 from typing import Iterable, Hashable, Optional
 import logging
 
+import srsly
+
 from atap_corpus.interfaces import Clonable, Serialisable, Container, Filterable
-from atap_corpus._types import TCorpus
+from atap_corpus._types import TCorpus, MPK_SUPPORTED
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,8 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
         self._id = _Global_Corpora.unique_id()
         _Global_Corpora.add(corpus=self)
 
+        self._attributes = dict()
+
     @property
     def id(self) -> uuid.UUID:
         return self._id
@@ -58,6 +62,23 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
     @abstractmethod
     def docs(self) -> Filterable:
         raise NotImplementedError()
+
+    @property
+    def attributes(self):
+        return self._attributes
+
+    def attribute(self, key: Hashable, value: MPK_SUPPORTED):
+        """ Attribute an attribute to the Corpus. These are corpus-level metadata."""
+        self._attributes[key] = value
+
+    def unattribute(self, key):
+        """ Remove an attribute from the Corpus. These are corpus-level metadata.
+        If not found, nothing happens.
+        """
+        try:
+            del self._attributes[key]
+        except KeyError as _:
+            pass
 
     def __hash__(self) -> int:
         """ Do not override this or __eq__(). GlobalCorpora depends on this. """

@@ -9,6 +9,15 @@ Doc: TypeAlias = str | spacy.tokens.Doc
 Docs: TypeAlias = 'pd.Series[Doc]'
 PathLike: TypeAlias = str | os.PathLike[str]
 
+# msgpack
+_MPK_SUPPORTED_PRIMITIVES = str | int | float
+_MPK_SUPPORTED_STRUCTURES = dict[_MPK_SUPPORTED_PRIMITIVES, _MPK_SUPPORTED_PRIMITIVES] | \
+                            list[_MPK_SUPPORTED_PRIMITIVES] | \
+                            tuple[_MPK_SUPPORTED_PRIMITIVES]
+MPK_SUPPORTED = dict[_MPK_SUPPORTED_PRIMITIVES, _MPK_SUPPORTED_PRIMITIVES | _MPK_SUPPORTED_STRUCTURES] | \
+                list[_MPK_SUPPORTED_PRIMITIVES | _MPK_SUPPORTED_STRUCTURES] | \
+                tuple[_MPK_SUPPORTED_PRIMITIVES | _MPK_SUPPORTED_STRUCTURES]
+
 # within this package
 TClonable = TypeVar("TClonable", bound='Clonable')
 TSerialisable = TypeVar("TSerialisable", bound='Serialisable')
