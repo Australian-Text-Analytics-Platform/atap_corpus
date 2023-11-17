@@ -38,6 +38,7 @@ optional = true
 jupyterlab = "<4.0"
 jupyterlab-vim = ">=0.15"
 jupyterlab-git = ">=0.41.0"
+coverage = "^7.3.2"
 
 
 [tool.poetry.extras]
