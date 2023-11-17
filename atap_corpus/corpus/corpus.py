@@ -1,10 +1,8 @@
 import logging
 import weakref as wref
 import zipfile
-from pathlib import Path
-from typing import Optional, Generator, Type, IO, Iterator, Hashable
 from collections import namedtuple
-from IPython.display import HTML
+from typing import Optional, Generator, Type, IO, Iterator, Hashable
 
 import numpy as np
 import pandas as pd
@@ -13,14 +11,14 @@ import spacy.tokens
 import srsly
 from tqdm.auto import tqdm
 
+from atap_corpus._types import PathLike, Docs, Mask, MPK_SUPPORTED
 from atap_corpus.corpus.base import BaseCorpusWithMeta
 from atap_corpus.mixins import SpacyDocsMixin, ClonableDTMRegistryMixin
 from atap_corpus.parts.base import BaseDTM
 from atap_corpus.parts.dtm import DTM
-from atap_corpus.slicer.slicer import CorpusSlicer
 from atap_corpus.registry import _Unique_Name_Provider
-from atap_corpus._types import PathLike, Docs, Mask, MPK_SUPPORTED
-from atap_corpus.utils import format_dunder_str, _IS_JUPYTER
+from atap_corpus.slicer.slicer import CorpusSlicer
+from atap_corpus.utils import format_dunder_str
 
 logger = logging.getLogger(__name__)
 
@@ -108,18 +106,6 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
             z.writestr("name", self.name.encode("utf-8"))
         if should_close: file.close()
         return path_or_file
-
-    def download(self) -> HTML:
-        # note: this is a temporary solution.
-        if _IS_JUPYTER:
-            path = self.name + ".zip"
-            path = Path(self.serialise(path))
-            import html
-            href = html.escape("./" + path.name)
-            default_fname = path.name
-            return HTML(f'<a href=/files/{href} download={default_fname}>Download {default_fname}</a>')
-        else:
-            raise NotImplementedError("Download is only available in jupyter.")
 
     @classmethod
     def deserialise(cls, path_or_file: PathLike | IO) -> 'DataFrameCorpus':

@@ -1,8 +1,10 @@
 """ Collections of utility functions
 
 """
+from pathlib import Path
 from typing import Type, Any, Optional
-from atap_corpus._types import PathLike
+
+from atap_corpus._types import PathLike, TCorpus
 
 
 def format_dunder_str(cls: Type[Any], *args, **kwargs) -> str:
@@ -41,3 +43,17 @@ def setup_loggers(path: Optional[PathLike] = None):
     logging.config.fileConfig(path)
     logger = logging.getLogger(__name__)
     logger.debug(f"Loggers configured with {path}")
+
+
+# note: this is an ad-hoc download function (jupyter only)
+def download(corpus: TCorpus) -> 'HTML':
+    if _IS_JUPYTER:
+        from IPython.display import HTML
+        path = corpus.name + ".zip"
+        path = Path(corpus.serialise(path))
+        import html
+        href = html.escape("./" + path.name)
+        default_fname = path.name
+        return HTML(f'<a href=/files/{href} download={default_fname}>Download {default_fname}</a>')
+    else:
+        raise NotImplementedError("Download is only available in jupyter.")
