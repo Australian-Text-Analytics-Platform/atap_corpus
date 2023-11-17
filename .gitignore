@@ -28,3 +28,6 @@ ltest_*.ipynb
 
 # pypi
 dist/*
+
+# coverage.py
+.coverage
