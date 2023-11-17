@@ -9,7 +9,7 @@ license = "MIT"
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"
 pandas = { version = ">=2.1", extras = ["excel", "parquet", "performance"] } # https://pandas.pydata.org/docs/getting_started/install.html#optional-dependencies
-pyarrow = ">=13.0.0"      # pandas memory efficient dep for str (also from pandas extra: parquet)
+pyarrow = ">=14.0.1"      # pandas memory efficient dep for str (also from pandas extra: parquet)
 openpyxl = "^3.1.1"
 spacy = "^v3.4.1"
 chardet = "^5.0.0"  # checks - 56kB

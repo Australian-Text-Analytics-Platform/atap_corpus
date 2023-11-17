@@ -125,10 +125,10 @@ class DTM(BaseDTM):
 
         terms = np.array(sorted(set(itertools.chain.from_iterable(series_of_terms))))
         matrix = lil_matrix((len(docs), len(terms)),
-                            dtype=np.integer)  # perf: lil_matrix is most efficient for row-wise replacement.
+                            dtype=np.int32)  # perf: lil_matrix is most efficient for row-wise replacement.
         for i, doc_terms in enumerate(series_of_terms):
             doc_terms = Counter(doc_terms)
-            count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms], dtype=np.integer)
+            count_vector: np.ndarray = np.array([doc_terms.get(t, 0) for t in terms], dtype=np.int32)
             matrix[i] = count_vector
 
         dtm = cls()
