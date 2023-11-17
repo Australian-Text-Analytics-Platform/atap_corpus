@@ -5,7 +5,7 @@ Provides a standardised base Corpus structure for ATAP tools.
 
 Different Corpus can be sliced into subcorpus based on different criterias and will always return an subclass
 instance of BaseCorpus.
-The slicing criteria is highly flexible, it accepts a user defined function and comes with convenience slicing
+The slicing criteria is flexible, it accepts a user defined function and comes with convenience slicing
 operations layered on top of it out-of-the-box.
 Subcorpus maintains a parent-child relationship with original corpus in a tree internally.
 
