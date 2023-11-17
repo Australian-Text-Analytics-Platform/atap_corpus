@@ -1,9 +1,10 @@
-import io
 import logging
 import weakref as wref
 import zipfile
+from pathlib import Path
 from typing import Optional, Generator, Type, IO, Iterator, Hashable
 from collections import namedtuple
+from IPython.display import HTML
 
 import numpy as np
 import pandas as pd
@@ -19,7 +20,7 @@ from atap_corpus.parts.dtm import DTM
 from atap_corpus.slicer.slicer import CorpusSlicer
 from atap_corpus.registry import _Unique_Name_Provider
 from atap_corpus._types import PathLike, Docs, Mask, MPK_SUPPORTED
-from atap_corpus.utils import format_dunder_str
+from atap_corpus.utils import format_dunder_str, _IS_JUPYTER
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,18 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         if should_close: file.close()
         return path_or_file
 
+    def download(self) -> HTML:
+        # note: this is a temporary solution.
+        if _IS_JUPYTER:
+            path = self.name + ".zip"
+            path = Path(self.serialise(path))
+            import html
+            href = html.escape("./" + path.name)
+            default_fname = path.name
+            return HTML(f'<a href=/files/{href} download={default_fname}>Download {default_fname}</a>')
+        else:
+            raise NotImplementedError("Download is only available in jupyter.")
+
     @classmethod
     def deserialise(cls, path_or_file: PathLike | IO) -> 'DataFrameCorpus':
         """ Deserialises your path or IO into a DataFrameCorpus.
@@ -195,8 +208,9 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         mask = mask.astype('bool')
         name = self.name if name is None else name  # dot notation
         name = _Unique_Name_Provider.unique_name_number_suffixed(name)
-        clone = super().cloned(mask, name=name)
         clone: DataFrameCorpus
+        clone = super().cloned(mask, name=name)
+        clone._attributes = self.attributes
         return clone
 
     def detached(self) -> 'DataFrameCorpus':
