@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Type, Any, Optional
 
 from atap_corpus._types import PathLike, TCorpus
-from atap_corpus.corpus import Corpus, Corpora
 
 
 def format_dunder_str(cls: Type[Any], *args, **kwargs) -> str:
@@ -39,7 +38,7 @@ _IS_JUPYTER = is_jupyter()
 
 def setup_loggers(path: Optional[PathLike] = None):
     if path is None: path = "./logging_conf.ini"
-    ?import logging.config
+    import logging.config
     # loads logging configuration file at root.
     logging.config.fileConfig(path)
     logger = logging.getLogger(__name__)
@@ -67,12 +66,13 @@ def download(corpus: TCorpus) -> 'FileDownload':
         raise NotImplementedError("Download is only available in jupyter.")
 
 
-def corpus_uploader() -> tuple['pn.Column', Corpora]:
+def corpus_uploader() -> tuple['pn.Column', 'Corpora']:
     """ Creates and return a File Uploader for Corpus and a Corpora that stores them.
     Each Corpus uploaded will be stored in the Corpora. There can be multiple selected or uploaded multiple times.
     """
     import panel as pn
     import io
+    from atap_corpus.corpus import Corpus, Corpora
     pn.extension()
     finp = pn.widgets.FileInput(accept='.zip', multiple=True)
     corpora = Corpora()
