@@ -134,7 +134,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
                         df = pd.read_parquet(df_h)
                 if f == "name":
                     with z.open(f, 'r') as n_h:
-                        name = str(n_h.read())
+                        name = str(n_h.read().decode('utf-8'))
                 if f == "corpus.attribs":
                     with z.open(f, 'r') as a_h:
                         attribs = srsly.msgpack_loads(a_h.read())
