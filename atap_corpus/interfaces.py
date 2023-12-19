@@ -152,3 +152,6 @@ class Serialisable(metaclass=ABCMeta):
 class Filterable(Protocol):
     def apply(self, func: Callable) -> Mask:
         ...
+
+    def __len__(self):
+        ...
