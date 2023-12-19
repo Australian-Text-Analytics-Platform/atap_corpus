@@ -47,7 +47,6 @@ class BaseOperation(Serialisable):
     def mask(self):
         """ Returns the mask of the corpus after slicing. """
         mask = self._filterable.apply(self.condition_func)
-        mask = (pd.Series([True] * len(self._filterable)) & mask)  # realigns index
         try:
             mask = mask.astype('boolean')
         except TypeError:
