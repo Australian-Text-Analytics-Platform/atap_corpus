@@ -31,7 +31,7 @@ class CorpusSlicer(object):
         """
         meta = self._corpus().get_meta(name)
         op = CallableOp(meta, cond_func)
-        mask = (pd.Series([True] * len(self._corpus())) & op.mask())  # realigns index
+        mask = (pd.Series([True] * len(self._corpus().find_root())) & op.mask())  # realigns index
         return self._corpus().cloned(mask)
 
     def filter_by_item(self, name: str, items):
@@ -42,7 +42,7 @@ class CorpusSlicer(object):
         """
         meta = self._corpus().get_meta(name)
         op = ItemOp(meta, items)
-        mask = (pd.Series([True] * len(self._corpus())) & op.mask())  # realigns index
+        mask = (pd.Series([True] * len(self._corpus().find_root())) & op.mask())  # realigns index
         return self._corpus().cloned(mask)
 
     def filter_by_range(self, name: str, min_: Optional[Union[int, float]] = None,
@@ -52,7 +52,7 @@ class CorpusSlicer(object):
         if min_ is None and max_ is None: return self._corpus()
         op = RangeOp(meta, min_, max_)
 
-        mask = (pd.Series([True] * len(self._corpus())) & op.mask())  # realigns index
+        mask = (pd.Series([True] * len(self._corpus().find_root())) & op.mask())  # realigns index
         return self._corpus().cloned(mask)
 
     def filter_by_regex(self, name: str, regex: str, ignore_case: bool = False):
@@ -69,7 +69,7 @@ class CorpusSlicer(object):
             meta = self._corpus().get_meta(name)
         op = RegexOp(meta, regex, ignore_case)
 
-        mask = (pd.Series([True] * len(self._corpus())) & op.mask())  # realigns index
+        mask = (pd.Series([True] * len(self._corpus().find_root())) & op.mask())  # realigns index
         return self._corpus().cloned(mask)
 
     def filter_by_datetime(self, name: str,
@@ -88,7 +88,7 @@ class CorpusSlicer(object):
         if start is None and end is None: return self._corpus()
         op = DatetimeOp(meta, start, end, strftime)
 
-        mask = (pd.Series([True] * len(self._corpus())) & op.mask())  # realigns index
+        mask = (pd.Series([True] * len(self._corpus().find_root())) & op.mask())  # realigns index
         return self._corpus().cloned(mask)
 
     def group_by(self, name: str, grouper: pd.Grouper = None) -> Iterator[tuple[str, TCorpusWithMeta]]:
