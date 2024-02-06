@@ -23,7 +23,7 @@ from atap_corpus.utils import format_dunder_str
 logger = logging.getLogger(__name__)
 
 
-def ensure_docs(docs: pd.Series) -> Docs:
+def ensure_docs(docs: pd.Series | list | set | tuple) -> Docs:
     if isinstance(docs, list | set | tuple):
         docs = pd.Series(docs)
     if not isinstance(docs, pd.Series):
