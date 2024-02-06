@@ -46,6 +46,9 @@ coverage = "^7.3.2"
 viz = ["panel", "matplotlib", "ipywidgets", "plotly"]
 apple = ["thinc-apple-ops", "urllib3"]
 
+[tool.poetry.urls]
+homepage = "https://github.com/Australian-Text-Analytics-Platform/atap_corpus"
+repository = "https://github.com/Australian-Text-Analytics-Platform/atap_corpus"
 
 [build-system]
 requires = ["poetry-core"]
