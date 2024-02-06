@@ -5,6 +5,8 @@ description = "Corpus mini-framework allowing for memory-efficient slicing and p
 authors = ["Jack Chan <huen.chan@sydney.edu.au>"]
 readme = "README.md"
 license = "MIT"
+homepage = "https://github.com/Australian-Text-Analytics-Platform/atap_corpus"
+repository = "https://github.com/Australian-Text-Analytics-Platform/atap_corpus"
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.13"
@@ -45,10 +47,6 @@ coverage = "^7.3.2"
 # specifying extras via dependency groups - currently an Open Issue: https://github.com/python-poetry/poetry/issues/4842
 viz = ["panel", "matplotlib", "ipywidgets", "plotly"]
 apple = ["thinc-apple-ops", "urllib3"]
-
-[tool.poetry.urls]
-homepage = "https://github.com/Australian-Text-Analytics-Platform/atap_corpus"
-repository = "https://github.com/Australian-Text-Analytics-Platform/atap_corpus"
 
 [build-system]
 requires = ["poetry-core"]
