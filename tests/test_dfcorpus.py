@@ -19,7 +19,7 @@ import pandas as pd
 
 from atap_corpus.corpus.corpus import DataFrameCorpus
 
-data = pd.Series(['a', 'b', 'c'])
+data = pd.Series(['a', 'b', 'c'], dtype='string')
 test_parent_mask = pd.Series([0, 1, 1], dtype=bool)
 test_child_mask = pd.Series([0, 1, 0], dtype=bool)
 test_parent2_mask = pd.Series([1, 0, 0], dtype=bool)

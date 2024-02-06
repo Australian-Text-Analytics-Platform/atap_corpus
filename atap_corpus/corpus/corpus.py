@@ -28,7 +28,11 @@ def ensure_docs(docs: pd.Series) -> Docs:
         docs = pd.Series(docs)
     if not isinstance(docs, pd.Series):
         raise TypeError(f"Docs must be pd.Series for DataFrameCorpus. Got {type(docs)}.")
-    return docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
+    docs: pd.Series = docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
+    contains_spacy = docs.apply(lambda d: isinstance(d, spacy.tokens.Doc))
+    if not contains_spacy.any():
+        docs = docs.astype('string')
+    return docs
 
 
 class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMeta):
