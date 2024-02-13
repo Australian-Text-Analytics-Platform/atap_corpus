@@ -186,7 +186,7 @@ class ClonableDTMRegistryMixin(object):
                 dtms[name] = root_dtm.cloned(self._mask)
             return dtms
 
-    def get_dtm(self, name: str):
+    def get_dtm(self, name: str) -> BaseDTM:
         self: Clonable | 'ClonableDTMRegistryMixin'
         root: 'ClonableDTMRegistryMixin' = self.find_root()
         if name not in root.__dtms.keys():

@@ -188,19 +188,23 @@ class DTM(BaseDTM):
         return self.matrix.sum()
 
     @property
-    def terms_vector(self):
+    def terms_vector(self) -> np.ndarray:
         """ Returns a vector of term counts for each term. """
         return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
 
     @property
-    def docs_vector(self):
+    def docs_vector(self) -> np.ndarray:
         """ Returns a vector of term counts for each document. """
         return np.asarray(self.matrix.sum(axis=1)).squeeze(axis=1)
+
+    def freq_table(self) -> pd.Series:
+        return pd.Series(self.terms_vector, index=self.terms)
 
     def vocab(self, nonzero: bool = False) -> set[str]:
         """ Returns a set of terms in the current dtm. """
         if nonzero:
-            return set(self.terms[self.terms_freq_vector.nonzero()[0]])
+            terms: np.ndarray = np.array(self.terms)
+            return set(terms[self.terms_vector.nonzero()[0]])
         else:
             return set(self.terms)
 
