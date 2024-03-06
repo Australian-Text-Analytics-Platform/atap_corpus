@@ -29,7 +29,7 @@ def ensure_docs(docs: pd.Series | list | set | tuple) -> Docs:
     if not isinstance(docs, pd.Series):
         raise TypeError(f"Docs must be pd.Series for DataFrameCorpus. Got {type(docs)}.")
     docs: pd.Series = docs.apply(lambda d: str(d) if not isinstance(d, spacy.tokens.Doc) else d)
-    contains_spacy = docs.apply(lambda d: isinstance(d, spacy.tokens.Doc))
+    contains_spacy = docs.apply(lambda d: isinstance(d, spacy.tokens.Doc)).astype('bool')
     if not contains_spacy.any():
         docs = docs.astype('string')
     return docs
