@@ -51,9 +51,6 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
 
     @name.setter
     def name(self, name: str):
-        from atap_corpus.registry import _Global_Corpora
-        if not _Global_Corpora.is_unique_name(name):
-            raise ValueError(f"{name} already exists.")
         self._name = name
 
     def rename(self, name: str):
