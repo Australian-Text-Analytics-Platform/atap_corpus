@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "atap-corpus"
-version = "0.1.13"
+version = "0.1.14"
 description = "Corpus mini-framework allowing for memory-efficient slicing and provides a standardised base corpus structure for the collection of ATAP tools. "
 authors = ["Jack Chan <huen.chan@sydney.edu.au>"]
 readme = "README.md"
