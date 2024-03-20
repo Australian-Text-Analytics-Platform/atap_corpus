@@ -51,10 +51,10 @@ class BaseCorpus(Clonable, Serialisable, metaclass=ABCMeta):
 
     @name.setter
     def name(self, name: str):
-        self._name = name
+        self.rename(name)
 
     def rename(self, name: str):
-        self.name = name
+        self._name = name
 
     @abstractmethod
     def docs(self) -> Filterable:
