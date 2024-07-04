@@ -208,7 +208,7 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         df = self._root_df_with_masked_applied().copy().reset_index(drop=True)
         name = f"{self.name}-detached"
         name = _Unique_Name_Provider.unique_name_number_suffixed(name=name)
-        detached = self.__class__(df[self._COL_DOC], name=name)
+        detached = self.__class__(df, name=name)
         return detached
 
     def _root_df_with_masked_applied(self) -> pd.DataFrame:
