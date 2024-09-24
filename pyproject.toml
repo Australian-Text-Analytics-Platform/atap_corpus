@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "atap-corpus"
-version = "0.1.14"
+version = "0.1.15"
 description = "Corpus mini-framework allowing for memory-efficient slicing and provides a standardised base corpus structure for the collection of ATAP tools. "
 authors = ["Jack Chan <huen.chan@sydney.edu.au>"]
 readme = "README.md"
@@ -25,7 +25,7 @@ scikit-learn = ">=1.1.1"         # todo: to be removed much later after reimplem
 # all extras dependencies must be put in this implicit main group
 #https://python-poetry.org/docs/managing-dependencies/#dependency-groups -> search for "Installing them is only possible by using Poetry"
 matplotlib = { version = "^3.5.2", optional = true }
-ipywidgets = { version = "^7.7.2", optional = true }    # 8.x.x latest - backwards compatibility kept for FileUpload widget
+ipywidgets = { version = ">=8.0", optional = true }    # 8.x.x latest - backwards compatibility kept for FileUpload widget
 plotly = { version = "^5.11.0", optional = true }
 panel = { version = "^1.2.3", optional = true }
 
