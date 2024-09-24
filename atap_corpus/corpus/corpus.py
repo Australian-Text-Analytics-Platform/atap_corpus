@@ -274,6 +274,14 @@ class DataFrameCorpus(SpacyDocsMixin, ClonableDTMRegistryMixin, BaseCorpusWithMe
         meta = meta.reindex(self._root_df_with_masked_applied().index)
         if name is None: name = meta.name
         else: meta.name = name
+    
+        # Replace all spaces in the meta name with underscores
+        name = name.strip().replace(' ', '_')
+        # Remove all special characters from the meta name.
+        name = ''.join([c for c in name if c.isalnum() or c == '_'])
+        # If the name starts with digits, add "M_" in front of it.
+        if name[0].isdigit(): name = 'M_' + name
+        
         if name == self._COL_DOC:
             raise KeyError(f"Name of meta {name} conflicts with internal document name. Please rename.")
         if not isinstance(name, str):
